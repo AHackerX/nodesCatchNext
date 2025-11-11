@@ -4,7 +4,7 @@
 
 # 🚀 nodesCatchNext
 
-**功能强大的代理节点管理和测速工具**
+**基于不良林nodesCatch V2.0 二次开发的代理节点管理和测速工具**
 
 [![Platform](https://img.shields.io/badge/platform-Windows-blue.svg)](https://www.microsoft.com/windows)
 [![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.8-purple.svg)](https://dotnet.microsoft.com/)
@@ -19,15 +19,67 @@
 
 ---
 
+## 🎉 相比原版的改进
+
+相比原版 nodesCatch V2.0，本项目进行了以下优化和改进：
+
+<table>
+<tr>
+<td width="50%">
+
+### 🚀 性能优化
+
+- ⚡ **测速性能提升**
+  - 优化了多线程并发测速算法
+  - 提升了大量节点的测速效率
+  - 减少了内存占用
+
+- 💾 **配置管理优化**
+  - 改进了配置文件的读写性能
+  - 优化了节点数据的存储结构
+  - 增强了配置文件的容错能力
+
+</td>
+<td width="50%">
+
+### ✨ 功能增强
+
+- 🔄 **核心支持**
+  - 升级至最新版 Mihomo 核心
+  - 支持Vless和Hysteria 2协议节点测速
+  - 支持更多新特性
+
+- 📊 **用户体验**
+  - 新增TLS RTT测速
+  - 改进了日志显示机制
+  - 增强了错误提示信息
+
+</td>
+</tr>
+<tr>
+
+</td>
+</tr>
+</table>
+
+### 📝 目前已知Bug
+
+- 🐛 **部分节点无法测速**：部分Hysteria 2协议节点无法测速
+- 🐛 **TLS RTT测速异常**：TLS RTT测速结果与HTTPS测速近乎一致
+
+> 💡 **提示**：如果您在使用过程中发现任何问题或有改进建议，欢迎提交 Issue 或 Pull Request！
+
+---
+
 <a name="功能特性"></a>
 
 ## ✨ 功能特性
 
 ### 📦 节点管理
-- ✅ 支持多种代理协议：VMess、Shadowsocks、VLESS、Trojan、SOCKS、HTTP 等
+- ✅ 支持多种代理协议：VMess、Shadowsocks、VLESS、Trojan、SOCKS、HTTP、Hysteria 2、Vless 等
 - 🔄 从订阅 URL 自动导入和更新节点
 - 📋 从分享链接快速导入节点
-- 🔧 批量管理节点（编辑、删除、去重）
+- 🔧 批量管理节点（删除、去重）
 - 📊 节点列表查看（地址、端口、协议、加密方式等详细信息）
 
 ### ⚡ 节点测速
@@ -46,7 +98,6 @@
 
 ### 💎 代理核心管理
 - 🎯 **Mihomo（Clash 分支）**：现代化的代理核心，性能优越
-- 🚀 **V2Ray**：传统的代理核心，兼容性好
 - 📜 实时显示核心运行日志
 - ⚙️ 一键启动/停止代理服务
 
@@ -106,19 +157,7 @@
 4. 等待测速完成，结果显示在列表中
 ```
 
-### 3️⃣ 使用代理
-
-> **快速启动代理服务**
-
-| 步骤 | 操作 |
-|:---:|------|
-| 1️⃣ | 在节点列表中选择要使用的节点（双击或右键选择） |
-| 2️⃣ | 点击 **启动核心** 按钮 |
-| 3️⃣ | 默认代理地址：`127.0.0.1:40000` |
-| 4️⃣ | 在系统或应用程序中配置代理为上述地址 |
-| 5️⃣ | 使用完毕后点击 **停止核心** |
-
-### 4️⃣ 导出节点
+### 3️⃣ 导出节点
 
 | 导出方式 | 说明 |
 |---------|------|
@@ -143,7 +182,7 @@
 {
   "localPort": 40000,              // 🔌 本地代理端口
   "externalControllerPort": 40001, // 🎛️ 外部控制器端口
-  "coreType": 1,                   // 💎 核心类型（0=V2Ray, 1=Mihomo）
+  "coreType": 1,                   // 💎 核心类型（Mihomo）
   "defAllowInsecure": true,        // 🔓 默认允许不安全连接
   "speedTestUrl": "...",           // 🌐 速度测试 URL
   "speedPingTestUrl": "...",       // 📡 Ping 测试 URL
@@ -175,8 +214,8 @@
 ```
 📁 nodesCatchNext/
 ├── 🚀 nodesCatchNext.exe       # 主程序
-├── 💎 mihomo-nodes.exe         # Mihomo 代理核心
-├── 📚 Newtonsoft.Json.dll      # JSON 处理库
+├── 💎 mihomo-nodes.exe         # Mihomo 代理核心（如需更新，请自行到[Mihomo releases](https://github.com/MetaCubeX/mihomo/releases)下载对应系统版本）
+├── 📚 Newtonsoft.Json.dll      # JSON 处理库（必要文件，请勿删除）
 ├── ⚙️ nodeConfig.json          # 主配置文件
 ├── 📁 config/                  # 配置文件目录
 │   ├── ⚙️ config.yaml          # Clash 配置
@@ -358,7 +397,7 @@
 
 ## 🙏 鸣谢
 
-本项目基于 **不良林** 的 [nodesCatch V2.0](https://bulianglin.com/archives/nodescatch.html) 进行二次开发。
+本项目基于 [**不良林**](https://www.youtube.com/@bulianglin) 的 [nodesCatch V2.0](https://bulianglin.com/archives/nodescatch.html) 进行二次开发。
 
 ### 开源项目引用
 
@@ -382,7 +421,7 @@
 
 **如果觉得这个项目有帮助，请给个 ⭐ Star 吧！**
 
-Made with ❤️ by nodesCatchNext Team
+Made with ❤️ by [AHackerX](https://github.com/AHackerX)
 
 [⬆️ 回到顶部](#top)
 
