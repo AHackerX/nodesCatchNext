@@ -1,3 +1,5 @@
+<a name="top"></a>
+
 <div align="center">
 
 # 🚀 nodesCatchNext
@@ -16,6 +18,8 @@
 </div>
 
 ---
+
+<a name="功能特性"></a>
 
 ## ✨ 功能特性
 
@@ -48,6 +52,8 @@
 
 ---
 
+<a name="快速开始"></a>
+
 ## 🚀 快速开始
 
 ### 📌 启动程序
@@ -55,6 +61,8 @@
 双击运行 `nodesCatchNext.exe` 即可启动程序。
 
 ---
+
+<a name="使用指南"></a>
 
 ## 📖 使用指南
 
@@ -119,6 +127,8 @@
 | 📤 **导出订阅内容** | 点击"导出订阅"生成 Base64 编码的订阅内容 |
 
 ---
+
+<a name="配置说明"></a>
 
 ## ⚙️ 配置说明
 
@@ -261,6 +271,8 @@
 
 ---
 
+<a name="常见问题"></a>
+
 ## ❓ 常见问题
 
 <details>
@@ -372,6 +384,6 @@
 
 Made with ❤️ by nodesCatchNext Team
 
-[⬆️ 回到顶部](#-nodescatchnext)
+[⬆️ 回到顶部](#top)
 
 </div>
