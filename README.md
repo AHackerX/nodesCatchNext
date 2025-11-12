@@ -111,7 +111,7 @@
 
 ### 📌 启动程序
 
-双击运行 `nodesCatchNext.exe` 即可启动程序。
+双击运行 `nodesCatchNext.exe` 即可启动程序。（建议以管理员模式运行）
 
 ---
 
