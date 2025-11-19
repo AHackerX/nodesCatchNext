@@ -4,7 +4,7 @@
 
 # 🚀 nodesCatchNext
 
-**基于不良林nodesCatch V2.0 二次开发的代理节点管理和测速工具**
+**基于[不良林nodesCatch V2.0](https://bulianglin.com/archives/nodescatch.html) 二次开发的代理节点管理和测速工具**
 
 [![Platform](https://img.shields.io/badge/platform-Windows-blue.svg)](https://www.microsoft.com/windows)
 [![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.8-purple.svg)](https://dotnet.microsoft.com/)
