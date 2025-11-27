@@ -4,120 +4,188 @@
 
 # 🚀 nodesCatchNext
 
-**基于[不良林nodesCatch V2.0](https://bulianglin.com/archives/nodescatch.html) 二次开发的代理节点管理和测速工具**
+[![Platform](https://img.shields.io/badge/platform-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
+[![.NET Framework](https://img.shields.io/badge/.NET_Framework-4.8-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![Release](https://img.shields.io/badge/release-v3.5-FF6B35?style=for-the-badge&logo=github&logoColor=white)](../../releases)
+[![License](https://img.shields.io/badge/license-MIT-00C853?style=for-the-badge)](LICENSE)
 
-[![Platform](https://img.shields.io/badge/platform-Windows-blue.svg)](https://www.microsoft.com/windows)
-[![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.8-purple.svg)](https://dotnet.microsoft.com/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v1.0-orange.svg)](../../releases)
+**🎯 基于 [不良林 nodesCatch V2.0](https://bulianglin.com/archives/nodescatch.html) 二次开发的代理节点管理和测速工具**
 
-支持多种代理协议的导入、管理、测速和转换
-
-[功能特性](#功能特性) • [快速开始](#快速开始) • [使用指南](#使用指南) • [配置说明](#配置说明) • [常见问题](#常见问题)
-
-</div>
+*支持多种代理协议的导入、管理、测速和转换*
 
 ---
 
-## 🎉 相比原版的改进
+**[📥 下载最新版](../../releases)** · **[🐛 反馈问题](../../issues)** · **[💡 功能建议](../../issues)**
 
-相比原版 nodesCatch V2.0，本项目进行了以下优化和改进：
+---
+
+[✨ 功能特性](#-功能特性-1) · [🚀 快速开始](#-快速开始-1) · [📖 使用指南](#-使用指南-1) · [⚙️ 配置说明](#️-配置说明-1) · [🔄 更新日志](#-更新日志)
+
+</div>
+
+<br>
+
+## 🎉 v3.5 新版本亮点
+
+<div align="center">
+
+| 🆕 新增功能 | 📝 描述 |
+|:---:|:---|
+| 🔐 **AnyTLS 协议** | 全新支持 AnyTLS 协议节点的导入、测速和导出 |
+| 🌍 **地区预设筛选** | 一键筛选 🇭🇰香港 🇹🇼台湾 🇯🇵日本 🇺🇸美国 🇸🇬新加坡 等地区节点 |
+| 🎨 **UI 全面优化** | 重新设计控制面板布局，操作更便捷 |
+
+</div>
+
+<br>
+
+## 🌟 相比原版的改进
+
+> 相比原版 nodesCatch V2.0，本项目进行了以下优化和改进
 
 <table>
 <tr>
-<td width="50%">
+<td width="50%" valign="top">
 
 ### 🚀 性能优化
 
-- ⚡ **测速性能提升**
-  - 优化了多线程并发测速算法
-  - 提升了大量节点的测速效率
-  - 减少了内存占用
-
-- 💾 **配置管理优化**
-  - 改进了配置文件的读写性能
-  - 优化了节点数据的存储结构
-  - 增强了配置文件的容错能力
+| 优化项 | 说明 |
+|:---:|:---|
+| ⚡ 测速算法 | 优化多线程并发，提升效率 |
+| 📦 内存占用 | 减少大量节点时的内存消耗 |
+| 📂 配置读写 | 改进配置文件的读写性能 |
+| 🛡 容错能力 | 增强配置文件的容错处理 |
 
 </td>
-<td width="50%">
+<td width="50%" valign="top">
 
 ### ✨ 功能增强
 
-- 🔄 **核心支持**
-  - 升级至最新版 Mihomo 核心
-  - 初步支持Vless和Hysteria 2协议节点测速
-  - 支持更多新特性
-
-- 📊 **用户体验**
-  - 新增TLS RTT测速
-  - 改进了日志显示机制
-  - 增强了错误提示信息
-
-</td>
-</tr>
-<tr>
+| 新功能 | 说明 |
+|:---:|:---|
+| 🔄 Mihomo 核心 | 升级至最新版本 |
+| 📊 TLS RTT | 新增 TLS 握手延迟测试 |
+| 🔒 新协议 | 支持 VLESS、Hysteria 2、AnyTLS |
+| 🌐 地区筛选 | 快速筛选指定地区节点 |
 
 </td>
 </tr>
 </table>
 
-### 📝 目前已知Bug
+<br>
 
-- 🐛 **部分节点无法测速**：部分节点TLS RTT和HTTPS延迟测速无速度(Vless+Reality协议节点最为显著)，但下载可以测速，自行判断可用性
-- 🐛 **TLS RTT测速异常**：TLS RTT测速结果与HTTPS测速近乎一致
+### 📝 已知问题
 
-> 💡 **提示**：如果您在使用过程中发现任何问题或有改进建议，欢迎提交 Issue 或 Pull Request！
+| 问题 | 描述 | 状态 |
+|:---:|:---|:---:|
+| 🐛 **部分节点测速异常** | VLESS+Reality 协议节点 TLS RTT 和 HTTPS 延迟可能无结果，但下载测速正常 | 🔍 调查中 |
+| 🐛 **TLS RTT 数值** | TLS RTT 测速结果与 HTTPS 延迟近乎一致 | 🔍 调查中 |
+
+> 💡 如果您发现任何问题或有改进建议，欢迎 [提交 Issue](../../issues)！
+
+<br>
 
 ---
 
-<a name="功能特性"></a>
+<a name="-功能特性-1"></a>
 
 ## ✨ 功能特性
 
+<table>
+<tr>
+<td width="50%" valign="top">
+
 ### 📦 节点管理
-- ✅ 支持多种代理协议：VMess、Shadowsocks、VLESS、Trojan、SOCKS、HTTP、Hysteria 2、Vless 等
-- 🔄 从订阅 URL 自动导入和更新节点
-- 📋 从分享链接快速导入节点
-- 🔧 批量管理节点（删除、去重）
-- 📊 节点列表查看（地址、端口、协议、加密方式等详细信息）
+
+- ✅ **多协议支持**
+  - VMess / VLESS / Trojan
+  - Shadowsocks / ShadowsocksR
+  - Hysteria / Hysteria 2
+  - TUIC / WireGuard / AnyTLS
+
+- 🔄 **导入方式**
+  - 订阅 URL 自动更新
+  - 分享链接快速导入
+  - 拖拽文件批量导入
+
+- 🔧 **批量操作**
+  - 智能去重 / 批量删除
+  - 关键词筛选 / 地区预设
+
+</td>
+<td width="50%" valign="top">
 
 ### ⚡ 节点测速
-- 📡 **Ping 测试**：检测节点延迟
-- 🌐 **HTTPS 延迟测试**：测试实际 HTTPS 连接延迟
-- 🔐 **TLS RTT 测试**：测试 TLS 握手往返时间
-- 📥 **下载速度测试**：测试节点实际下载速度
-- 🚄 支持多线程并发测速，快速评估节点质量
-- ⏱️ 快速模式：设置时间限制快速筛选可用节点
+
+- 📡 **延迟测试**
+  - TLS RTT 握手延迟
+  - HTTPS 连接延迟
+  - 多线程并发测速
+
+- 📥 **速度测试**
+  - 实际下载速度
+  - 快速模式筛选
+  - 自定义测速 URL
+
+- 📊 **结果管理**
+  - 自动排序 / 导出结果
+  - 移除低速 / 无效节点
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
 
 ### 🔄 协议转换
-- 🔗 导出为分享链接（支持各种协议格式）
-- 📝 转换为 Clash 配置文件
-- 🔤 导出为 Base64 编码的订阅内容
-- 🛠️ 订阅转换功能（集成 Subconverter）
 
-### 💎 代理核心管理
-- 🎯 **Mihomo（Clash 分支）**：现代化的代理核心，性能优越
-- 📜 实时显示核心运行日志
-- ⚙️ 一键启动/停止代理服务
+- 🔗 导出分享链接
+- 📝 转换 Clash/Mihomo 配置
+- 🔤 导出 Base64 订阅
+- 🛠️ 集成 Subconverter
+
+</td>
+<td width="50%" valign="top">
+
+### 💎 代理核心
+
+- 🎯 Mihomo 核心支持
+- 📜 实时运行日志
+- ⚙️ 一键启停服务
+- 🚀 推送节点到核心
+
+</td>
+</tr>
+</table>
 
 ---
 
-<a name="快速开始"></a>
+<a name="-快速开始-1"></a>
 
 ## 🚀 快速开始
 
-[下载压缩包](https://github.com/AHackerX/nodesCatchNext/releases)，并解压
+<div align="center">
 
-### 📌 启动程序
+### 📥 下载安装
 
-双击运行 `nodesCatchNext.exe` 即可启动程序。（建议以管理员模式运行）
-- ⚠️进行测速时，系统如果正在使用代理软件，可能会导致测速结果失真！
-- ⚠️建议关闭代理软件代理功能后再进行测速，尤其是TUN(虚拟网卡)模式！
+[![Download](https://img.shields.io/badge/下载最新版-v3.5-FF6B35?style=for-the-badge&logo=github)](https://github.com/AHackerX/nodesCatchNext/releases)
+
+</div>
+
+```
+1️⃣ 下载压缩包并解压到任意目录
+2️⃣ 双击运行 nodesCatchNext.exe（建议以管理员模式运行）
+3️⃣ 开始导入节点并测速！
+```
+
+> ⚠️ **重要提示**
+> - 测速时请关闭其他代理软件，尤其是 TUN（虚拟网卡）模式
+> - 代理软件运行中可能导致测速结果失真
+
+<br>
 
 ---
 
-<a name="使用指南"></a>
+<a name="-使用指南-1"></a>
 
 ## 📖 使用指南
 
@@ -125,76 +193,104 @@
 
 <table>
 <tr>
-<td width="50%">
+<td width="50%" valign="top">
 
-**方式一：从分享链接导入** 🔗
+#### 🔗 方式一：分享链接导入
 
-1. 复制代理节点的分享链接
-   - `vmess://...`
-   - `ss://...`
-   - `trojan://...` 等
-2. 在主界面点击 **从剪贴板导入**
-3. 程序自动解析并添加到列表 ✅
+```
+① 复制节点分享链接
+   • vmess://...
+   • ss://...
+   • trojan://...
+   • vless://...
+   • hysteria2://...
+   • anytls://...
+
+② 右键菜单 → 从剪贴板导入
+   或使用快捷键 Ctrl+V
+
+③ 自动解析并添加到列表 ✅
+```
 
 </td>
-<td width="50%">
+<td width="50%" valign="top">
 
-**方式二：从订阅 URL 导入** 📡
+#### 📡 方式二：订阅 URL 导入
 
-1. 点击 **订阅设置** 按钮
-2. 添加订阅 URL 并设置备注
-3. 点击 **更新订阅**
-4. 自动获取并导入所有节点 🎉
+```
+① 点击「订阅管理」按钮
+
+② 添加订阅 URL
+   • 填写订阅地址
+   • 设置备注名称
+
+③ 点击「更新订阅」
+
+④ 自动获取所有节点 🎉
+```
 
 </td>
 </tr>
 </table>
 
+<br>
+
 ### 2️⃣ 测速节点
 
-```
-1. 在节点列表中选择要测速的节点（支持多选）
-2. 点击"测速"按钮
-3. 选择测速类型：
-   ⚡ 实时 Ping - 快速测试延迟
-   📥 下载测速 - 测试实际速度和延迟
-4. 等待测速完成，结果显示在列表中
-```
+| 步骤 | 操作 | 说明 |
+|:---:|:---|:---|
+| **1** | 选择节点 | 单选 / 多选 / `Ctrl+A` 全选 |
+| **2** | 点击测速 | 右键菜单或点击「一键自动测速」 |
+| **3** | 选择类型 | 🔐 TLS RTT · 🌐 HTTPS延迟 · 📥 下载速度 |
+| **4** | 等待完成 | 结果自动显示在列表中 |
+
+<br>
 
 ### 3️⃣ 导出节点
 
-| 导出方式 | 说明 |
-|---------|------|
-| 🔗 **导出分享链接** | 选中节点后右键选择"复制分享链接" |
-| 📝 **导出 Clash 配置** | 点击"导出为 Clash 配置"保存为 `.yaml` 文件 |
-| 📤 **导出订阅内容** | 点击"导出订阅"生成 Base64 编码的订阅内容 |
+| 导出方式 | 操作 | 快捷键 |
+|:---|:---|:---:|
+| 🔗 **分享链接** | 右键 → 导出分享URL到剪贴板 | `Ctrl+C` |
+| 📝 **Clash 配置** | 右键 → 导出Mihomo订阅文件 | - |
+| 🔤 **Base64 订阅** | 右键 → 导出Base64通用订阅文件 | - |
+| 📋 **订阅内容** | 右键 → 导出订阅内容到剪贴板 | - |
+
+<br>
+
+### ⌨️ 快捷键速查
+
+| 快捷键 | 功能 | 快捷键 | 功能 |
+|:---:|:---|:---:|:---|
+| `Ctrl+R` | 测试 RTT + HTTPS 延迟 | `Ctrl+A` | 全选节点 |
+| `Ctrl+T` | 测试下载速度 | `Ctrl+C` | 导出分享链接 |
+| `Ctrl+U` | 测试 TLS RTT | `Ctrl+V` | 从剪贴板导入 |
+| `Ctrl+Y` | 测试 HTTPS 延迟 | `Delete` | 删除选中节点 |
+| `Ctrl+E` | 一键测速选中节点 | `双击` | 编辑节点 |
 
 ---
 
-<a name="配置说明"></a>
+<a name="️-配置说明-1"></a>
 
 ## ⚙️ 配置说明
 
-### 📄 nodeConfig.json
+### 📄 主配置文件
 
-> 主配置文件，存储所有节点、订阅和程序设置，位于程序根目录。
+> `guiNConfig.json` - 存储所有节点、订阅和程序设置
 
 <details>
-<summary><b>点击查看配置项说明</b></summary>
+<summary><b>📋 点击展开配置项说明</b></summary>
 
 ```json
 {
   "localPort": 40000,              // 🔌 本地代理端口
-  "externalControllerPort": 40001, // 🎛️ 外部控制器端口
-  "coreType": 1,                   // 💎 核心类型（Mihomo）
+  "ClashPort": "9090",             // 🎛️ Mihomo 外部控制端口
   "defAllowInsecure": true,        // 🔓 默认允许不安全连接
-  "speedTestUrl": "...",           // 🌐 速度测试 URL
-  "speedPingTestUrl": "...",       // 📡 Ping 测试 URL
-  "pingAble": true,                // ✅ 是否启用 Ping
+  "speedTestUrl": "...",           // 🌐 下载测速 URL
+  "speedPingTestUrl": "...",       // 📡 延迟测试 URL
+  "pingAble": true,                // ✅ 是否启用延迟测试
   "speedAble": true,               // ✅ 是否启用速度测试
-  "fastMode": false,               // ⚡ 是否启用快速模式
-  "Thread": "100",                 // 🧵 并发线程数
-  "DownloadThread": "5",           // 📥 下载线程数
+  "fastMode": true,                // ⚡ 是否启用快速模式
+  "Thread": "100",                 // 🧵 延迟测速线程数
   "vmess": [],                     // 📦 节点列表
   "subItem": []                    // 📡 订阅列表
 }
@@ -202,37 +298,30 @@
 
 </details>
 
-### 📁 config/ 目录
+<br>
 
-| 文件 | 说明 | 图标 |
-|------|------|:---:|
-| `config.yaml` | Clash/Mihomo 配置文件 | ⚙️ |
-| `temp.yaml` | 临时生成的配置文件 | 📝 |
-| `cache.db` | 缓存数据库 | 💾 |
-| `Country.mmdb` | IP 地理位置数据库（GeoIP） | 🌍 |
-
----
-
-## 📂 目录结构
+### 📁 目录结构
 
 ```
 📁 nodesCatchNext/
-├── 🚀 nodesCatchNext.exe       # 主程序
-├── 💎 mihomo-nodes.exe         # Mihomo 代理核心（如需更新，请自行到[Mihomo releases](https://github.com/MetaCubeX/mihomo/releases)下载对应系统版本）
-├── 📚 Newtonsoft.Json.dll      # JSON 处理库（必要文件，请勿删除）
-├── ⚙️ nodeConfig.json          # 主配置文件
-├── 📁 config/                  # 配置文件目录
-│   ├── ⚙️ config.yaml          # Clash 配置
-│   ├── 📝 temp.yaml            # 临时配置
-│   ├── 💾 cache.db             # 缓存数据库
-│   └── 🌍 Country.mmdb         # GeoIP 数据库
-└── 📁 subconverter/            # 订阅转换工具
-    ├── 📁 base/                # 基础配置
-    ├── 📁 config/              # 转换规则
-    ├── 📁 profiles/            # 配置文件
-    ├── 📁 rules/               # 分流规则
-    └── 📁 snippets/            # 代码片段
+│
+├── 🚀 nodesCatchNext.exe          # 主程序
+├── 💎 mihomo-nodes.exe            # Mihomo 代理核心
+├── 📚 Newtonsoft.Json.dll         # JSON 处理库（必要）
+├── ⚙️ guiNConfig.json             # 主配置文件
+│
+├── 📁 config/                     # 运行时配置
+│   ├── config.yaml                # Mihomo 配置
+│   ├── cache.db                   # 缓存数据库
+│   └── Country.mmdb               # GeoIP 数据库
+│
+└── 📁 subconverter/               # 订阅转换工具
+    └── ...
 ```
+
+> 💡 **提示**：如需更新 Mihomo 核心，请到 [Mihomo Releases](https://github.com/MetaCubeX/mihomo/releases) 下载对应版本
+
+<br>
 
 ---
 
@@ -240,47 +329,90 @@
 
 <table>
 <tr>
-<td width="50%">
+<td width="50%" valign="top">
 
-### ⚡ 快速筛选可用节点
+### ⚡ 快速筛选节点
 
-1. 导入大量节点后，启用 **快速模式**
-2. 设置较短的超时时间（3-5 秒）
-3. 运行测速，快速淘汰不可用节点
-4. 对剩余节点进行完整测速
+```
+① 启用「快速模式」
+② 设置较短超时时间（3-5秒）
+③ 设置峰值速度阈值
+④ 运行测速，快速淘汰慢节点
+⑤ 对剩余节点完整测速
+```
 
 </td>
-<td width="50%">
+<td width="50%" valign="top">
 
-### 🎯 自定义测速 URL
-> V3.0-1版本后支持在GUI界面进行更改
+### 🌍 地区预设筛选
 
-1. 打开 `nodeConfig.json`
-2. 修改配置项：
-   - `speedTestUrl`
-   - `speedPingTestUrl`
-3. 建议使用稳定的测速服务器
-4. 重启程序生效 🔄
+```
+① 勾选「关键词筛选」
+② 点击 ▼ 按钮
+③ 选择地区预设：
+   🇭🇰 香港  🇹🇼 台湾
+   🇯🇵 日本  🇺🇸 美国
+   🇸🇬 新加坡 🇰🇷 韩国
+④ 自动填入筛选关键词
+```
 
 </td>
 </tr>
 <tr>
-<td width="50%">
+<td width="50%" valign="top">
 
 ### 🔧 批量操作
 
-- ⌨️ 使用 `Ctrl` 或 `Shift` 键多选节点
-- 🗑️ 支持批量删除、批量测速
-- 📋 右键菜单提供更多批量操作
+- `Ctrl` / `Shift` 多选节点
+- 右键菜单批量操作
+- 支持批量删除、测速、导出
 
 </td>
-<td width="50%">
+<td width="50%" valign="top">
 
-### 📡 订阅管理
+### ⚙️ 自定义测速 URL
 
-- 🔄 定期更新订阅以获取最新节点
-- 📚 可以设置多个订阅源
-- 📝 建议为每个订阅添加备注
+- 点击「设置」按钮
+- 修改延迟测速 URL
+- 修改下载测速 URL
+- 建议使用稳定服务器
+
+</td>
+</tr>
+</table>
+
+<br>
+
+---
+
+## ⚠️ 注意事项 & 系统要求
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 📋 注意事项
+
+| 项目 | 说明 |
+|:---:|:---|
+| 🎯 **首次运行** | 自动创建配置文件 |
+| 🔌 **端口占用** | 修改配置中的端口 |
+| 🛡️ **防火墙** | 允许程序通过 |
+| 💾 **配置备份** | 定期备份配置文件 |
+| ⏱️ **测速频率** | 避免过于频繁 |
+| ⚖️ **合法使用** | 遵守当地法规 |
+
+</td>
+<td width="50%" valign="top">
+
+### 💻 系统要求
+
+| 项目 | 要求 |
+|:---:|:---|
+| 🖥️ **操作系统** | Windows 7+ |
+| 🔧 **.NET** | Framework 4.8+ |
+| 🧠 **内存** | ≥ 100MB |
+| 💾 **磁盘** | ≥ 50MB |
 
 </td>
 </tr>
@@ -288,146 +420,106 @@
 
 ---
 
-## ⚠️ 注意事项
-
-> 使用前请仔细阅读以下注意事项
-
-| 项目 | 说明 |
-|------|------|
-| 🎯 **首次运行** | 程序会自动创建配置文件和必要目录 |
-| 🔌 **端口占用** | 如果默认端口（40000）被占用，请在配置文件中修改 `localPort` |
-| 🛡️ **防火墙** | 首次运行可能需要允许程序通过防火墙 |
-| 💎 **代理核心** | 确保 `mihomo-nodes.exe` 与主程序在同一目录 |
-| 💾 **配置备份** | 建议定期备份 `nodeConfig.json` 避免节点数据丢失 |
-| ⏱️ **测速频率** | 避免过于频繁的测速，可能被服务器识别为异常流量 |
-| ⚖️ **合法使用** | 请遵守当地法律法规，仅用于合法用途 |
-
----
-
-## 💻 系统要求
-
-| 项目 | 要求 |
-|------|------|
-| 🖥️ **操作系统** | Windows 7 及以上 |
-| 🔧 **.NET Framework** | 4.8 或更高版本 |
-| 🧠 **内存** | 至少 100MB 可用内存 |
-| 💾 **磁盘空间** | 至少 50MB 可用空间 |
-
----
-
-<a name="常见问题"></a>
-
-## ❓ 常见问题
-
-<details>
-<summary><b>❌ Q: 节点导入失败？</b></summary>
-
-**A:** 请检查分享链接格式是否正确，确保协议头（如 `vmess://`、`ss://`）完整。
-
-✅ **解决方案：**
-- 检查链接是否完整复制
-- 确认链接格式符合标准
-- 尝试手动添加协议头
-
-</details>
-
-<details>
-<summary><b>⏱️ Q: 测速一直超时？</b></summary>
-
-**A:** 可能是网络问题或节点失效，部分Vless和Hysteria 2协议无法测速
-
-✅ **建议：**
-- 🔍 检查本地网络连接
-- 🔄 尝试更换测速 URL
-- ⏰ 增加超时时间设置
-- 🌐 确认网络环境正常
-
-</details>
-
-<details>
-<summary><b>🚫 Q: 启动核心失败？</b></summary>
-
-**A:** 请逐项检查以下内容：
-
-✅ **检查清单：**
-- [ ] 端口是否被占用
-- [ ] `mihomo-nodes.exe` 是否存在
-- [ ] 配置文件是否正确
-- [ ] 查看日志窗口的错误信息
-- [ ] 尝试更换端口号
-
-</details>
-
-<details>
-<summary><b>🔧 Q: 如何更改本地代理端口？</b></summary>
-
-**A:** 修改配置文件中的端口设置
-
-📝 **步骤：**
-1. 打开 `nodeConfig.json`
-2. 找到 `localPort` 字段
-3. 修改为目标端口（如 `7890`）
-4. 保存文件并重启程序 ✅
-
-</details>
-
----
-
 ## 🔄 更新日志
 
-请查看 [GitHub Releases](../../releases) 页面获取最新版本和更新说明。
+<details open>
+<summary><b>🏷️ v3.5 (最新版本)</b></summary>
+
+- ✨ 新增 AnyTLS 协议支持
+- 🎨 优化 UI 布局，合并控制面板
+- 🌍 新增地区预设快速筛选
+- 🔧 改进节点去重逻辑（包含备注字段）
+- ⚙️ 将测速 URL 设置移至设置界面
+- 🗑️ 移除冗余的内核选择功能
+
+</details>
+
+<details>
+<summary><b>🏷️ v3.0</b></summary>
+
+- 🔄 升级至最新版 Mihomo 核心
+- ⚡ 初步支持 VLESS 和 Hysteria 2 协议
+- 📊 新增 TLS RTT 测速功能
+- 💾 优化配置文件管理
+
+</details>
+
+> 📋 查看完整更新日志：[GitHub Releases](../../releases)
+
+<br>
 
 ---
 
-## 📜 许可证
+## 📜 许可证 & 免责声明
 
-本项目仅供学习和研究使用，请勿用于非法用途。
+<table>
+<tr>
+<td width="50%" valign="top">
 
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+### 📄 许可证
 
----
+本项目基于 **MIT License** 开源
 
-## ⚖️ 免责声明
+[![License](https://img.shields.io/badge/license-MIT-00C853?style=for-the-badge)](LICENSE)
 
-> **重要提醒**
+</td>
+<td width="50%" valign="top">
 
-```
-⚠️  本工具仅作为技术研究和学习使用
-⚠️  使用本工具产生的任何后果由使用者自行承担
-⚠️  请遵守当地法律法规，合理合法使用网络资源
-⚠️  开发者不对使用本工具造成的任何问题负责
-```
+### ⚠️ 免责声明
+
+- 本工具仅供学习和研究使用
+- 使用产生的后果由使用者承担
+- 请遵守当地法律法规
+- 开发者不对任何问题负责
+
+</td>
+</tr>
+</table>
+
+<br>
 
 ---
 
 ## 🙏 鸣谢
 
-本项目基于 [**不良林**](https://www.youtube.com/@bulianglin) 的 [nodesCatch V2.0](https://bulianglin.com/archives/nodescatch.html) 进行二次开发。
+<div align="center">
+
+**本项目基于 [不良林](https://www.youtube.com/@bulianglin) 的 [nodesCatch V2.0](https://bulianglin.com/archives/nodescatch.html) 二次开发**
+
+</div>
 
 ### 开源项目引用
 
-本项目使用了以下优秀的开源项目，在此表示感谢：
+| 项目 | 说明 |
+|:---:|:---|
+| [💎 Mihomo](https://github.com/MetaCubeX/mihomo) | Clash 分支，功能强大的代理核心 |
+| [🚀 V2Ray](https://github.com/v2ray/v2ray-core) | 网络代理工具，支持多种协议 |
+| [📱 v2rayN](https://github.com/2dust/v2rayN) | Windows 平台的 V2Ray 客户端 |
+| [🔄 Subconverter](https://github.com/tindy2013/subconverter) | 订阅转换工具 |
+| [📚 Newtonsoft.Json](https://github.com/JamesNK/Newtonsoft.Json) | .NET 高性能 JSON 框架 |
 
-| 项目 | 说明 | 链接 |
-|------|------|------|
-| 💎 **Mihomo** | Clash 的一个分支，功能强大的代理核心 | [GitHub](https://github.com/MetaCubeX/mihomo) |
-| 🚀 **V2Ray** | 网络代理工具，支持多种协议 | [GitHub](https://github.com/v2ray/v2ray-core) |
-| 📱 **v2rayN** | Windows 平台的 V2Ray 客户端 | [GitHub](https://github.com/2dust/v2rayN) |
-| 🔄 **Subconverter** | 订阅转换工具，支持多种配置格式转换 | [GitHub](https://github.com/tindy2013/subconverter) |
-| 📚 **Newtonsoft.Json** | .NET 平台的高性能 JSON 框架 | [GitHub](https://github.com/JamesNK/Newtonsoft.Json) |
-
-感谢所有开源项目作者的无私贡献！
+<br>
 
 ---
 
 <div align="center">
 
-### 💖 感谢使用
+## ⭐ Star History
 
-**如果觉得这个项目有帮助，请给个 ⭐ Star 吧！**
+如果这个项目对你有帮助，请给个 **Star** 支持一下！
+
+<br>
+
+[![Star History Chart](https://api.star-history.com/svg?repos=AHackerX/nodesCatchNext&type=Date)](https://star-history.com/#AHackerX/nodesCatchNext&Date)
+
+<br>
+
+---
+
+### 💖 感谢使用
 
 Made with ❤️ by [AHackerX](https://github.com/AHackerX)
 
-[⬆️ 回到顶部](#top)
+**[⬆️ 回到顶部](#top)**
 
 </div>
