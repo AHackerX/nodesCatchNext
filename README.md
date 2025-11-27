@@ -309,7 +309,7 @@
 ├── 🚀 nodesCatchNext.exe          # 主程序
 ├── 💎 mihomo-nodes.exe            # Mihomo 代理核心
 ├── 📚 Newtonsoft.Json.dll         # JSON 处理库（必要）
-├── ⚙️ guiNConfig.json             # 主配置文件
+├── ⚙️ nodeConfig.json             # 主配置文件
 │
 ├── 📁 config/                     # 运行时配置
 │   ├── config.yaml                # Mihomo 配置
