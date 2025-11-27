@@ -275,7 +275,7 @@
 
 ### 📄 主配置文件
 
-> `guiNConfig.json` - 存储所有节点、订阅和程序设置
+> `nodeConfig.json` - 存储所有节点、订阅和程序设置
 
 <details>
 <summary><b>📋 点击展开配置项说明</b></summary>
