@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <AssemblyName>nodesCatchNext</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <OutputType>WinExe</OutputType>
+    <UseWindowsForms>True</UseWindowsForms>
+    <TargetFramework>net48</TargetFramework>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>12.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <RootNamespace />
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="nodesCatchNext.Sample.SampleClientConfig.txt" />
+    <None Remove="nodesCatchNext.Sample.SampleHttprequest.txt" />
+    <EmbeddedResource Include="nodesCatchNext.Sample.SampleClientConfig.txt" LogicalName="nodesCatchNext.Sample.SampleClientConfig.txt" />
+    <EmbeddedResource Include="nodesCatchNext.Sample.SampleHttprequest.txt" LogicalName="nodesCatchNext.Sample.SampleHttprequest.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Core" />
+    <Reference Include="System.Web" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+</Project>

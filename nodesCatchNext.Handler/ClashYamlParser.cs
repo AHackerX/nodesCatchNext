@@ -1,0 +1,411 @@
+using System;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using nodesCatchNext.Mode;
+
+namespace nodesCatchNext.Handler;
+
+/// <summary>
+/// 原生 Clash YAML 配置解析器，支持 VLESS Reality、Hysteria2 等协议
+/// </summary>
+public static class ClashYamlParser
+{
+    /// <summary>
+    /// 解析 Clash YAML 配置，提取 proxies 节点
+    /// </summary>
+    public static List<VmessItem> ParseYaml(string yamlContent)
+    {
+        var result = new List<VmessItem>();
+        if (string.IsNullOrEmpty(yamlContent))
+            return result;
+
+        // 找到 proxies: 部分
+        int proxiesIndex = yamlContent.IndexOf("proxies:");
+        if (proxiesIndex < 0)
+            return result;
+
+        string proxiesSection = yamlContent.Substring(proxiesIndex);
+        
+        // 找到下一个顶级键（proxy-groups:, rules: 等）作为结束
+        string[] topLevelKeys = { "proxy-groups:", "rules:", "rule-providers:", "proxy-providers:" };
+        int endIndex = proxiesSection.Length;
+        foreach (var key in topLevelKeys)
+        {
+            int idx = proxiesSection.IndexOf("\n" + key);
+            if (idx > 0 && idx < endIndex)
+                endIndex = idx;
+        }
+        proxiesSection = proxiesSection.Substring(0, endIndex);
+
+        // 按 "- name:" 分割每个代理节点
+        var proxyBlocks = SplitProxyBlocks(proxiesSection);
+        
+        foreach (var block in proxyBlocks)
+        {
+            var item = ParseProxyBlock(block);
+            if (item != null)
+                result.Add(item);
+        }
+
+        return result;
+    }
+
+    private static List<string> SplitProxyBlocks(string proxiesSection)
+    {
+        var blocks = new List<string>();
+        var lines = proxiesSection.Split(new[] { '\n' }, StringSplitOptions.None);
+        var currentBlock = new List<string>();
+        bool inProxy = false;
+
+        foreach (var line in lines)
+        {
+            string trimmed = line.TrimStart();
+            
+            // 检测新代理块开始
+            if (trimmed.StartsWith("- name:") || trimmed.StartsWith("-  name:"))
+            {
+                if (inProxy && currentBlock.Count > 0)
+                {
+                    blocks.Add(string.Join("\n", currentBlock));
+                }
+                currentBlock.Clear();
+                currentBlock.Add(line);
+                inProxy = true;
+            }
+            else if (inProxy)
+            {
+                currentBlock.Add(line);
+            }
+        }
+
+        if (currentBlock.Count > 0)
+        {
+            blocks.Add(string.Join("\n", currentBlock));
+        }
+
+        return blocks;
+    }
+
+    private static VmessItem ParseProxyBlock(string block)
+    {
+        try
+        {
+            var props = ParseYamlProperties(block);
+            if (!props.ContainsKey("type") || !props.ContainsKey("name"))
+                return null;
+
+            string type = props["type"].ToLower();
+            var item = new VmessItem
+            {
+                remarks = CleanName(props.GetValueOrDefault("name", "")),
+                address = props.GetValueOrDefault("server", ""),
+                port = ParseInt(props.GetValueOrDefault("port", "0"))
+            };
+
+            switch (type)
+            {
+                case "vless":
+                    return ParseVless(item, props);
+                case "vmess":
+                    return ParseVmess(item, props);
+                case "ss":
+                case "shadowsocks":
+                    return ParseShadowsocks(item, props);
+                case "trojan":
+                    return ParseTrojan(item, props);
+                case "hysteria2":
+                case "hy2":
+                    return ParseHysteria2(item, props);
+                case "socks5":
+                case "socks":
+                    return ParseSocks(item, props);
+                case "http":
+                    return ParseHttp(item, props);
+                default:
+                    return null;
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static Dictionary<string, string> ParseYamlProperties(string block)
+    {
+        var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var lines = block.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var sectionStack = new List<string>();
+        int lastIndent = -1;
+
+        foreach (var line in lines)
+        {
+            // 计算缩进
+            int indent = 0;
+            foreach (char c in line)
+            {
+                if (c == ' ') indent++;
+                else if (c == '\t') indent += 2;
+                else break;
+            }
+
+            string trimmed = line.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#"))
+                continue;
+
+            // 处理 "- name: xxx" 格式（列表项开始）
+            if (trimmed.StartsWith("- "))
+            {
+                trimmed = trimmed.Substring(2).Trim();
+                sectionStack.Clear();
+                lastIndent = indent;
+            }
+            else if (indent <= lastIndent && sectionStack.Count > 0)
+            {
+                // 缩进减少，退出子节
+                while (sectionStack.Count > 0 && indent <= lastIndent)
+                {
+                    sectionStack.RemoveAt(sectionStack.Count - 1);
+                    lastIndent -= 2;
+                }
+            }
+
+            // 检测子节（如 reality-opts:, ws-opts:, headers:）
+            if (trimmed.EndsWith(":") && !trimmed.Contains(": "))
+            {
+                string sectionName = trimmed.TrimEnd(':');
+                sectionStack.Add(sectionName);
+                lastIndent = indent;
+                continue;
+            }
+
+            // 解析 key: value
+            int colonIndex = trimmed.IndexOf(':');
+            if (colonIndex > 0)
+            {
+                string key = trimmed.Substring(0, colonIndex).Trim();
+                string value = trimmed.Substring(colonIndex + 1).Trim();
+                
+                // 移除引号
+                value = value.Trim('\'', '"');
+                
+                // 构建完整的键名
+                string fullKey = key;
+                if (sectionStack.Count > 0)
+                {
+                    fullKey = string.Join(".", sectionStack) + "." + key;
+                }
+                
+                props[fullKey] = value;
+                
+                // 同时保存简单键名（用于兼容）
+                if (!props.ContainsKey(key))
+                {
+                    props[key] = value;
+                }
+            }
+        }
+
+        return props;
+    }
+
+    private static VmessItem ParseVless(VmessItem item, Dictionary<string, string> props)
+    {
+        item.configType = 5; // VLESS
+        item.id = props.GetValueOrDefault("uuid", "");
+        item.security = props.GetValueOrDefault("encryption", "none");
+        item.network = props.GetValueOrDefault("network", "tcp");
+        item.flow = props.GetValueOrDefault("flow", "");
+        
+        // TLS 设置
+        bool tls = ParseBool(props.GetValueOrDefault("tls", "false"));
+        string security = props.GetValueOrDefault("security", "");
+        
+        // Reality 设置
+        string publicKey = props.GetValueOrDefault("reality-opts.public-key", "");
+        string shortId = props.GetValueOrDefault("reality-opts.short-id", "");
+        
+        if (!string.IsNullOrEmpty(publicKey))
+        {
+            item.streamSecurity = "reality";
+            item.publicKey = publicKey;
+            item.shortId = shortId;
+            item.sni = props.GetValueOrDefault("servername", "");
+            item.fingerprint = props.GetValueOrDefault("client-fingerprint", "chrome");
+        }
+        else if (tls || security == "tls")
+        {
+            item.streamSecurity = "tls";
+            item.sni = props.GetValueOrDefault("servername", props.GetValueOrDefault("sni", ""));
+            item.fingerprint = props.GetValueOrDefault("client-fingerprint", "");
+        }
+
+        // skip-cert-verify
+        if (ParseBool(props.GetValueOrDefault("skip-cert-verify", "false")))
+        {
+            item.allowInsecure = "true";
+        }
+
+        // 网络设置
+        ParseNetworkSettings(item, props);
+
+        return item;
+    }
+
+    private static VmessItem ParseVmess(VmessItem item, Dictionary<string, string> props)
+    {
+        item.configType = 1; // VMess
+        item.id = props.GetValueOrDefault("uuid", "");
+        item.alterId = ParseInt(props.GetValueOrDefault("alterId", "0"));
+        item.security = props.GetValueOrDefault("cipher", "auto");
+        item.network = props.GetValueOrDefault("network", "tcp");
+
+        bool tls = ParseBool(props.GetValueOrDefault("tls", "false"));
+        if (tls)
+        {
+            item.streamSecurity = "tls";
+            item.sni = props.GetValueOrDefault("servername", props.GetValueOrDefault("sni", ""));
+        }
+
+        if (ParseBool(props.GetValueOrDefault("skip-cert-verify", "false")))
+        {
+            item.allowInsecure = "true";
+        }
+
+        ParseNetworkSettings(item, props);
+
+        return item;
+    }
+
+    private static VmessItem ParseShadowsocks(VmessItem item, Dictionary<string, string> props)
+    {
+        item.configType = 3; // Shadowsocks
+        item.id = props.GetValueOrDefault("password", "");
+        item.security = props.GetValueOrDefault("cipher", props.GetValueOrDefault("method", ""));
+        
+        string plugin = props.GetValueOrDefault("plugin", "");
+        if (!string.IsNullOrEmpty(plugin))
+        {
+            item.network = plugin;
+        }
+
+        return item;
+    }
+
+    private static VmessItem ParseTrojan(VmessItem item, Dictionary<string, string> props)
+    {
+        item.configType = 6; // Trojan
+        item.id = props.GetValueOrDefault("password", "");
+        item.streamSecurity = "tls";
+        item.sni = props.GetValueOrDefault("sni", props.GetValueOrDefault("servername", ""));
+        item.network = props.GetValueOrDefault("network", "tcp");
+
+        if (ParseBool(props.GetValueOrDefault("skip-cert-verify", "false")))
+        {
+            item.allowInsecure = "true";
+        }
+
+        ParseNetworkSettings(item, props);
+
+        return item;
+    }
+
+    private static VmessItem ParseHysteria2(VmessItem item, Dictionary<string, string> props)
+    {
+        item.configType = 11; // Hysteria2
+        item.network = "hysteria2";
+        item.streamSecurity = "tls";
+        
+        // password 或 auth
+        item.id = props.GetValueOrDefault("password", props.GetValueOrDefault("auth", ""));
+        item.sni = props.GetValueOrDefault("sni", "");
+        
+        // obfs 设置
+        string obfs = props.GetValueOrDefault("obfs", "");
+        if (!string.IsNullOrEmpty(obfs))
+        {
+            item.path = obfs; // obfs type
+            item.requestHost = props.GetValueOrDefault("obfs-password", ""); // obfs password
+        }
+
+        if (ParseBool(props.GetValueOrDefault("skip-cert-verify", "false")))
+        {
+            item.allowInsecure = "true";
+        }
+
+        return item;
+    }
+
+    private static VmessItem ParseSocks(VmessItem item, Dictionary<string, string> props)
+    {
+        item.configType = 4; // Socks
+        item.security = props.GetValueOrDefault("username", "");
+        item.id = props.GetValueOrDefault("password", "");
+        return item;
+    }
+
+    private static VmessItem ParseHttp(VmessItem item, Dictionary<string, string> props)
+    {
+        bool tls = ParseBool(props.GetValueOrDefault("tls", "false"));
+        item.configType = tls ? 8 : 7; // HTTPS or HTTP
+        item.security = props.GetValueOrDefault("username", "");
+        item.id = props.GetValueOrDefault("password", "");
+        return item;
+    }
+
+    private static void ParseNetworkSettings(VmessItem item, Dictionary<string, string> props)
+    {
+        switch (item.network?.ToLower())
+        {
+            case "ws":
+            case "websocket":
+                item.network = "ws";
+                item.path = props.GetValueOrDefault("ws-opts.path", props.GetValueOrDefault("path", "/"));
+                item.requestHost = props.GetValueOrDefault("ws-opts.headers.Host", props.GetValueOrDefault("host", ""));
+                break;
+            case "grpc":
+                item.path = props.GetValueOrDefault("grpc-opts.grpc-service-name", props.GetValueOrDefault("serviceName", ""));
+                item.headerType = props.GetValueOrDefault("grpc-opts.grpc-mode", "gun");
+                break;
+            case "h2":
+            case "http":
+                item.network = "h2";
+                item.path = props.GetValueOrDefault("h2-opts.path", props.GetValueOrDefault("path", "/"));
+                item.requestHost = props.GetValueOrDefault("h2-opts.host", props.GetValueOrDefault("host", ""));
+                break;
+            case "tcp":
+            default:
+                item.network = "tcp";
+                item.headerType = props.GetValueOrDefault("headerType", "none");
+                break;
+        }
+    }
+
+    private static string CleanName(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return "NONE";
+        // URL 解码 + 号
+        return name.Replace("+", " ").Trim();
+    }
+
+    private static int ParseInt(string value)
+    {
+        if (int.TryParse(value, out int result))
+            return result;
+        return 0;
+    }
+
+    private static bool ParseBool(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return false;
+        value = value.ToLower();
+        return value == "true" || value == "1" || value == "yes";
+    }
+
+    private static string GetValueOrDefault(this Dictionary<string, string> dict, string key, string defaultValue = "")
+    {
+        return dict.TryGetValue(key, out string value) ? value : defaultValue;
+    }
+}

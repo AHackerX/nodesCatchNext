@@ -1,0 +1,15 @@
+# Build results
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.cache
+
+# NuGet
+packages/
+*.nupkg

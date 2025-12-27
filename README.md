@@ -6,7 +6,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![.NET Framework](https://img.shields.io/badge/.NET_Framework-4.8-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![Release](https://img.shields.io/badge/release-v3.5-FF6B35?style=for-the-badge&logo=github&logoColor=white)](../../releases)
+[![Release](https://img.shields.io/badge/release-v3.8-FF6B35?style=for-the-badge&logo=github&logoColor=white)](../../releases)
 [![License](https://img.shields.io/badge/license-MIT-00C853?style=for-the-badge)](LICENSE)
 
 **🎯 基于 [不良林 nodesCatch V2.0](https://bulianglin.com/archives/nodescatch.html) 二次开发的代理节点管理和测速工具**
@@ -25,16 +25,16 @@
 
 <br>
 
-## 🎉 v3.5 新版本亮点
+## 🎉 v3.8 新版本亮点
 
 <div align="center">
 
 | 🆕 新增功能 | 📝 描述 |
 |:---:|:---|
-| 🔐 **AnyTLS 协议** | 全新支持 AnyTLS 协议节点的导入、测速和导出 |
-| 🌍 **地区预设筛选** | 一键筛选 🇭🇰香港 🇹🇼台湾 🇯🇵日本 🇺🇸美国 🇸🇬新加坡 等地区节点 |
-| 🎨 **UI 全面优化** | 重新设计控制面板布局，操作更便捷 |
-| ✒️ **允许编辑节点信息** | 允许用户编辑节点信息，需在设置中开启 |
+| 📄 **原生 YAML 解析** | 无需 subconverter 即可直接导入 Clash/Mihomo YAML 配置文件 |
+| 🔐 **完整协议支持** | 支持 VLESS Reality、Hysteria2、VMess、Trojan、SS 等协议的 YAML 导入 |
+| 🛠️ **智能错误提示** | 根据错误代码提供具体解决建议，自动检测系统架构 |
+| 📦 **开箱即用** | 减少对外部组件的依赖，提升用户体验 |
 
 </div>
 
@@ -168,7 +168,7 @@
 
 ### 📥 下载安装
 
-[![Download](https://img.shields.io/badge/下载最新版-v3.5-FF6B35?style=for-the-badge&logo=github)](https://github.com/AHackerX/nodesCatchNext/releases)
+[![Download](https://img.shields.io/badge/下载最新版-v3.8-FF6B35?style=for-the-badge&logo=github)](https://github.com/AHackerX/nodesCatchNext/releases)
 
 </div>
 
@@ -424,7 +424,30 @@
 ## 🔄 更新日志
 
 <details open>
-<summary><b>🏷️ v3.5 (最新版本)</b></summary>
+<summary><b>🏷️ v3.8 (最新版本)</b></summary>
+
+- ✨ 新增原生 Clash YAML 配置解析功能，无需依赖 subconverter 即可直接导入
+- 🔐 支持 VLESS（包括 Reality）、VMess、Shadowsocks、Trojan、Hysteria2 等协议的 YAML 导入
+- 🛠️ Mihomo 内核启动失败时，根据错误代码提供具体的解决建议
+- 🔍 自动检测系统架构，提示下载对应版本（amd64/386）
+- 📝 改进错误提示信息，明确告知用户缺少哪些文件或配置
+- 🐛 修复反编译残留代码导致的编译错误
+
+</details>
+
+<details>
+<summary><b>🏷️ v3.7</b></summary>
+
+- ⚙️ 设置界面新增关闭程序时保存配置按钮
+- 🔄 设置界面新增"订阅更新模式"，分为覆盖更新和添加更新
+- 🎨 修改"允许直接关闭程序"和"记住窗口位置"设置逻辑
+- 🐛 修复订阅Tab栏更新单个订阅会导致更新所有订阅的Bug
+- ⚡ 调整下载测速逻辑，确保每个节点使用不同的API端口测速
+
+</details>
+
+<details>
+<summary><b>🏷️ v3.5</b></summary>
 
 - ✨ 新增 AnyTLS 协议支持
 - 🎨 优化 UI 布局，合并控制面板
