@@ -79,7 +79,9 @@ internal class ShareHandler
 				{
 					vmessItem.requestHost = "nodesCatchNext";
 				}
-				result = $"{vmessItem.address}:{vmessItem.port}:{vmessItem.security}:{vmessItem.headerType}:{vmessItem.network}:{Utils.Base64EncodeUrlSafe(vmessItem.id)}/?remarks={Utils.Base64EncodeUrlSafe(vmessItem.remarks)}&protoparam={Utils.Base64EncodeUrlSafe(vmessItem.streamSecurity)}&obfsparam={Utils.Base64EncodeUrlSafe(vmessItem.sni)}&group={Utils.Base64EncodeUrlSafe(vmessItem.requestHost)}";
+				// SSR 链接格式: address:port:protocol:method:obfs:base64(password)/?remarks=...&protoparam=...&obfsparam=...&group=...
+				// 字段映射: network=protocol, security=method(cipher), headerType=obfs
+				result = $"{vmessItem.address}:{vmessItem.port}:{vmessItem.network}:{vmessItem.security}:{vmessItem.headerType}:{Utils.Base64EncodeUrlSafe(vmessItem.id)}/?remarks={Utils.Base64EncodeUrlSafe(vmessItem.remarks)}&protoparam={Utils.Base64EncodeUrlSafe(vmessItem.streamSecurity)}&obfsparam={Utils.Base64EncodeUrlSafe(vmessItem.sni)}&group={Utils.Base64EncodeUrlSafe(vmessItem.requestHost)}";
 				result = Utils.Base64EncodeUrlSafe(result);
 				result = string.Format("{0}{1}", "ssr://", result);
 			}
@@ -809,9 +811,11 @@ internal class ShareHandler
 		string[] array3 = array[1].Split('&');
 		vmessItem.address = array2[0];
 		vmessItem.port = Utils.ToInt(array2[1]);
-		vmessItem.security = array2[2];
-		vmessItem.headerType = array2[3];
-		vmessItem.network = array2[4];
+		// SSR 链接格式: address:port:protocol:method:obfs:password
+		// 字段映射: network=protocol, security=method(cipher), headerType=obfs
+		vmessItem.network = array2[2];      // protocol
+		vmessItem.security = array2[3];     // method (cipher)
+		vmessItem.headerType = array2[4];   // obfs
 		vmessItem.id = Utils.Base64Decode(array2[5]);
 		string[] array4 = null;
 		string[] array5 = array3;

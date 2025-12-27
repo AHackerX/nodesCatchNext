@@ -132,6 +132,10 @@ internal class MainFormHandler
 					case 8: // HTTPS
 						result = ConfigHandler.AddHttpsServer(ref config, item, -1);
 						break;
+					case 9: // SSR (ShadowsocksR)
+						config.vmess.Add(item);
+						result = 0;
+						break;
 					case 11: // Hysteria2
 						result = ConfigHandler.AddHysteria2Server(ref config, item, -1);
 						break;

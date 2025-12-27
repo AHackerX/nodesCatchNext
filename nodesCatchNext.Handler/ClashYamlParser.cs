@@ -53,6 +53,20 @@ public static class ClashYamlParser
     private static List<string> SplitProxyBlocks(string proxiesSection)
     {
         var blocks = new List<string>();
+        
+        // 处理紧凑格式：proxies:- {name: xxx}- {name: yyy}（没有换行）
+        // 先尝试用正则提取所有 - {...} 格式的单行节点
+        var inlineMatches = Regex.Matches(proxiesSection, @"-\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}");
+        if (inlineMatches.Count > 0)
+        {
+            foreach (Match match in inlineMatches)
+            {
+                blocks.Add(match.Value);
+            }
+            return blocks;
+        }
+        
+        // 如果没有匹配到单行格式，使用原来的多行解析逻辑
         var lines = proxiesSection.Split(new[] { '\n' }, StringSplitOptions.None);
         var currentBlock = new List<string>();
         bool inProxy = false;
@@ -61,7 +75,14 @@ public static class ClashYamlParser
         {
             string trimmed = line.TrimStart();
             
-            // 检测新代理块开始
+            // 检测单行格式: - {name: xxx, server: xxx, ...}
+            if (trimmed.StartsWith("- {") && trimmed.Contains("}"))
+            {
+                blocks.Add(trimmed);
+                continue;
+            }
+            
+            // 检测多行格式新代理块开始
             if (trimmed.StartsWith("- name:") || trimmed.StartsWith("-  name:"))
             {
                 if (inProxy && currentBlock.Count > 0)
@@ -121,6 +142,9 @@ public static class ClashYamlParser
                     return ParseSocks(item, props);
                 case "http":
                     return ParseHttp(item, props);
+                case "ssr":
+                case "shadowsocksr":
+                    return ParseShadowsocksR(item, props);
                 default:
                     return null;
             }
@@ -134,6 +158,21 @@ public static class ClashYamlParser
     private static Dictionary<string, string> ParseYamlProperties(string block)
     {
         var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        
+        string trimmedBlock = block.Trim();
+        
+        // 检测单行格式: - {name: xxx, server: xxx, ...} 或 {name: xxx, ...}
+        if (trimmedBlock.StartsWith("- {"))
+        {
+            trimmedBlock = trimmedBlock.Substring(2).Trim(); // 移除 "- "
+        }
+        
+        if (trimmedBlock.StartsWith("{") && trimmedBlock.EndsWith("}"))
+        {
+            return ParseInlineYaml(trimmedBlock);
+        }
+        
+        // 多行格式解析
         var lines = block.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
         var sectionStack = new List<string>();
         int lastIndent = -1;
@@ -207,6 +246,140 @@ public static class ClashYamlParser
         }
 
         return props;
+    }
+
+    /// <summary>
+    /// 解析单行 YAML 格式: {name: xxx, server: xxx, port: 443, type: http, ...}
+    /// </summary>
+    private static Dictionary<string, string> ParseInlineYaml(string inline)
+    {
+        var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        
+        // 移除首尾花括号
+        string content = inline.Trim().TrimStart('{').TrimEnd('}').Trim();
+        
+        if (string.IsNullOrEmpty(content))
+            return props;
+
+        // 使用状态机解析，处理引号内的逗号和冒号
+        var pairs = SplitInlineYamlPairs(content);
+        
+        foreach (var pair in pairs)
+        {
+            int colonIndex = FindKeyValueSeparator(pair);
+            if (colonIndex > 0)
+            {
+                string key = pair.Substring(0, colonIndex).Trim();
+                string value = pair.Substring(colonIndex + 1).Trim();
+                
+                // 移除引号
+                value = value.Trim('\'', '"');
+                
+                props[key] = value;
+            }
+        }
+
+        return props;
+    }
+
+    /// <summary>
+    /// 分割单行 YAML 的键值对，正确处理引号内的逗号
+    /// </summary>
+    private static List<string> SplitInlineYamlPairs(string content)
+    {
+        var pairs = new List<string>();
+        var current = new System.Text.StringBuilder();
+        bool inQuote = false;
+        char quoteChar = '\0';
+        int braceDepth = 0;
+
+        for (int i = 0; i < content.Length; i++)
+        {
+            char c = content[i];
+
+            // 处理引号
+            if ((c == '"' || c == '\'') && (i == 0 || content[i - 1] != '\\'))
+            {
+                if (!inQuote)
+                {
+                    inQuote = true;
+                    quoteChar = c;
+                }
+                else if (c == quoteChar)
+                {
+                    inQuote = false;
+                    quoteChar = '\0';
+                }
+                current.Append(c);
+                continue;
+            }
+
+            // 处理嵌套花括号（如 headers: {Host: xxx}）
+            if (!inQuote)
+            {
+                if (c == '{') braceDepth++;
+                else if (c == '}') braceDepth--;
+            }
+
+            // 逗号分隔（不在引号内且不在嵌套花括号内）
+            if (c == ',' && !inQuote && braceDepth == 0)
+            {
+                string pair = current.ToString().Trim();
+                if (!string.IsNullOrEmpty(pair))
+                {
+                    pairs.Add(pair);
+                }
+                current.Clear();
+                continue;
+            }
+
+            current.Append(c);
+        }
+
+        // 添加最后一个键值对
+        string lastPair = current.ToString().Trim();
+        if (!string.IsNullOrEmpty(lastPair))
+        {
+            pairs.Add(lastPair);
+        }
+
+        return pairs;
+    }
+
+    /// <summary>
+    /// 找到键值分隔符（冒号），跳过引号内的冒号
+    /// </summary>
+    private static int FindKeyValueSeparator(string pair)
+    {
+        bool inQuote = false;
+        char quoteChar = '\0';
+
+        for (int i = 0; i < pair.Length; i++)
+        {
+            char c = pair[i];
+
+            if ((c == '"' || c == '\'') && (i == 0 || pair[i - 1] != '\\'))
+            {
+                if (!inQuote)
+                {
+                    inQuote = true;
+                    quoteChar = c;
+                }
+                else if (c == quoteChar)
+                {
+                    inQuote = false;
+                    quoteChar = '\0';
+                }
+                continue;
+            }
+
+            if (c == ':' && !inQuote)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     private static VmessItem ParseVless(VmessItem item, Dictionary<string, string> props)
@@ -350,6 +523,21 @@ public static class ClashYamlParser
         item.configType = tls ? 8 : 7; // HTTPS or HTTP
         item.security = props.GetValueOrDefault("username", "");
         item.id = props.GetValueOrDefault("password", "");
+        return item;
+    }
+
+    private static VmessItem ParseShadowsocksR(VmessItem item, Dictionary<string, string> props)
+    {
+        item.configType = 9; // SSR
+        item.id = props.GetValueOrDefault("password", "");
+        item.security = props.GetValueOrDefault("cipher", "");
+        
+        // SSR 特有参数 - 字段映射与 ssr:// 链接格式一致
+        item.network = props.GetValueOrDefault("protocol", "");           // protocol
+        item.headerType = props.GetValueOrDefault("obfs", "");            // obfs
+        item.streamSecurity = props.GetValueOrDefault("protocol-param", ""); // protocol-param
+        item.sni = props.GetValueOrDefault("obfs-param", "");             // obfs-param
+        
         return item;
     }
 
