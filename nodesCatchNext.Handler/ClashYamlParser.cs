@@ -145,6 +145,8 @@ public static class ClashYamlParser
                 case "ssr":
                 case "shadowsocksr":
                     return ParseShadowsocksR(item, props);
+                case "anytls":
+                    return ParseAnyTLS(item, props);
                 default:
                     return null;
             }
@@ -537,6 +539,22 @@ public static class ClashYamlParser
         item.headerType = props.GetValueOrDefault("obfs", "");            // obfs
         item.streamSecurity = props.GetValueOrDefault("protocol-param", ""); // protocol-param
         item.sni = props.GetValueOrDefault("obfs-param", "");             // obfs-param
+        
+        return item;
+    }
+
+    private static VmessItem ParseAnyTLS(VmessItem item, Dictionary<string, string> props)
+    {
+        item.configType = 12; // AnyTLS
+        item.network = "anytls";
+        item.streamSecurity = "tls";
+        item.id = props.GetValueOrDefault("password", "");
+        item.sni = props.GetValueOrDefault("sni", "");
+        
+        if (ParseBool(props.GetValueOrDefault("skip-cert-verify", "false")))
+        {
+            item.allowInsecure = "true";
+        }
         
         return item;
     }

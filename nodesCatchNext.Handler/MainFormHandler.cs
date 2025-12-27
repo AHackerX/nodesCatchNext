@@ -139,6 +139,9 @@ internal class MainFormHandler
 					case 11: // Hysteria2
 						result = ConfigHandler.AddHysteria2Server(ref config, item, -1);
 						break;
+					case 12: // AnyTLS
+						result = ConfigHandler.AddAnyTLSServer(ref config, item, -1);
+						break;
 				}
 				
 				if (result == 0)
