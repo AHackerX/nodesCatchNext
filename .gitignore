@@ -9,7 +9,22 @@ obj/
 *.user
 *.suo
 *.cache
+*.rsuser
+*.userosscache
+*.sln.docstates
 
 # NuGet
 packages/
 *.nupkg
+
+# Designer generated files (not used in this project)
+*.resx
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
