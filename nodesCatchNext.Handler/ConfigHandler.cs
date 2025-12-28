@@ -93,6 +93,26 @@ internal class ConfigHandler
 				config.uiItem.mainLvColWidth.Add("httpsDelay", 80);
 			}
 		}
+		// 初始化列可见性配置
+		if (config.uiItem.mainLvColVisible == null)
+		{
+			config.uiItem.mainLvColVisible = new Dictionary<string, bool>
+			{
+				{ "def", true },
+				{ "configType", true },
+				{ "remarks", true },
+				{ "address", true },
+				{ "port", true },
+				{ "security", true },
+				{ "network", true },
+				{ "tls", true },
+				{ "subRemarks", true },
+				{ "tlsRtt", true },
+				{ "httpsDelay", true },
+				{ "testResult", true },
+				{ "MaxSpeed", true }
+			};
+		}
 		if (Utils.IsNullOrEmpty(config.speedTestUrl))
 		{
 			config.speedTestUrl = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.2.15.tar.xz";
@@ -211,6 +231,8 @@ internal class ConfigHandler
 			config.uiItem.mainSize = currentConfig.uiItem.mainSize;
 			config.uiItem.mainLocation = currentConfig.uiItem.mainLocation;
 			config.uiItem.mainLvColWidth = currentConfig.uiItem.mainLvColWidth;
+			config.uiItem.mainLvColVisible = currentConfig.uiItem.mainLvColVisible;
+			config.uiItem.mainLvColOrder = currentConfig.uiItem.mainLvColOrder;
 			ToJsonFile(config);
 			return 0;
 		}

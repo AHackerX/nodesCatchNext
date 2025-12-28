@@ -296,6 +296,27 @@ public class MainForm : Form
 		});
 	}
 
+	// 列定义：key, 显示名称, 默认宽度
+	private readonly List<(string key, string displayName, int defaultWidth)> columnDefinitions = new List<(string, string, int)>
+	{
+		("def", "No", 40),
+		("configType", "类型", 80),
+		("remarks", "别名", 200),
+		("address", "服务器地址", 120),
+		("port", "端口", 50),
+		("security", "加密方式", 90),
+		("network", "传输协议", 70),
+		("tls", "TLS", 80),
+		("subRemarks", "订阅", 70),
+		("tlsRtt", "TLS RTT", 80),
+		("httpsDelay", "HTTPS延迟", 80),
+		("testResult", "平均速度", 200),
+		("MaxSpeed", "峰值速度", 80)
+	};
+
+	// 当前列顺序（key列表）
+	private List<string> currentColumnOrder;
+
 	private void InitServersView()
 	{
 		lvServers.BeginUpdate();
@@ -306,25 +327,103 @@ public class MainForm : Form
 		lvServers.Scrollable = true;
 		lvServers.MultiSelect = true;
 		lvServers.HeaderStyle = ColumnHeaderStyle.Clickable;
-		lvServers.Columns.Add("No", GetColumnWidth("def", 40), HorizontalAlignment.Center);
-		lvServers.Columns.Add("类型", GetColumnWidth("configType", 80), HorizontalAlignment.Center);
-		lvServers.Columns.Add("别名", GetColumnWidth("remarks", 200), HorizontalAlignment.Center);
-		lvServers.Columns.Add("服务器地址", GetColumnWidth("address", 120), HorizontalAlignment.Center);
-		lvServers.Columns.Add("端口", GetColumnWidth("port", 50), HorizontalAlignment.Center);
-		lvServers.Columns.Add("加密方式", GetColumnWidth("security", 90), HorizontalAlignment.Center);
-		lvServers.Columns.Add("传输协议", GetColumnWidth("network", 70), HorizontalAlignment.Center);
-		lvServers.Columns.Add("TLS", GetColumnWidth("tls", 80), HorizontalAlignment.Center);
-		lvServers.Columns.Add("订阅", GetColumnWidth("subRemarks", 70), HorizontalAlignment.Center);
-		lvServers.Columns.Add("TLS RTT", GetColumnWidth("tlsRtt", 80), HorizontalAlignment.Center);
-		lvServers.Columns.Add("HTTPS延迟", GetColumnWidth("httpsDelay", 80), HorizontalAlignment.Center);
-		lvServers.Columns.Add("平均速度", GetColumnWidth("testResult", 200), HorizontalAlignment.Center);
-		lvServers.Columns.Add("峰值速度", GetColumnWidth("MaxSpeed", 80), HorizontalAlignment.Center);
+		
+		// 获取列顺序
+		currentColumnOrder = GetColumnOrder();
+		
+		// 按顺序添加列
+		foreach (var key in currentColumnOrder)
+		{
+			var colDef = columnDefinitions.FirstOrDefault(c => c.key == key);
+			if (colDef.key != null)
+			{
+				lvServers.Columns.Add(colDef.displayName, GetVisibleColumnWidth(key, colDef.defaultWidth), HorizontalAlignment.Center);
+			}
+		}
+		
 		if (config.recordTestTime)
 		{
 			lvServers.Columns.Add("最后测速", GetColumnWidth("lastTestTime", 130), HorizontalAlignment.Center);
 		}
 		EnsureColumnHeaderMinWidths();
 		lvServers.EndUpdate();
+	}
+
+	private List<string> GetColumnOrder()
+	{
+		if (config.uiItem?.mainLvColOrder != null && config.uiItem.mainLvColOrder.Count > 0)
+		{
+			// 使用保存的顺序，但确保包含所有列
+			var order = new List<string>(config.uiItem.mainLvColOrder);
+			foreach (var col in columnDefinitions)
+			{
+				if (!order.Contains(col.key))
+				{
+					order.Add(col.key);
+				}
+			}
+			return order;
+		}
+		// 默认顺序
+		return columnDefinitions.Select(c => c.key).ToList();
+	}
+
+	private bool IsColumnVisible(string columnName)
+	{
+		if (config.uiItem?.mainLvColVisible == null)
+			return true;
+		if (config.uiItem.mainLvColVisible.TryGetValue(columnName, out bool visible))
+			return visible;
+		return true;
+	}
+
+	private int GetVisibleColumnWidth(string key, int defaultValue)
+	{
+		if (!IsColumnVisible(key))
+			return 0;
+		return GetColumnWidth(key, defaultValue);
+	}
+
+	/// <summary>
+	/// 根据列名获取实际的列索引（考虑隐藏列）
+	/// </summary>
+	private int GetColumnIndexByName(string columnText)
+	{
+		for (int i = 0; i < lvServers.Columns.Count; i++)
+		{
+			if (lvServers.Columns[i].Text == columnText)
+				return i;
+		}
+		return -1;
+	}
+
+	/// <summary>
+	/// 根据列索引获取对应的 EServerColName 枚举值
+	/// </summary>
+	private EServerColName GetServerColNameByIndex(int columnIndex)
+	{
+		if (columnIndex < 0 || columnIndex >= lvServers.Columns.Count)
+			return EServerColName.def;
+		
+		string columnText = lvServers.Columns[columnIndex].Text;
+		return columnText switch
+		{
+			"No" => EServerColName.def,
+			"类型" => EServerColName.configType,
+			"别名" => EServerColName.remarks,
+			"服务器地址" => EServerColName.address,
+			"端口" => EServerColName.port,
+			"加密方式" => EServerColName.security,
+			"传输协议" => EServerColName.network,
+			"TLS" => EServerColName.tls,
+			"订阅" => EServerColName.subRemarks,
+			"TLS RTT" => EServerColName.tlsRtt,
+			"HTTPS延迟" => EServerColName.httpsDelay,
+			"平均速度" => EServerColName.testResult,
+			"峰值速度" => EServerColName.MaxSpeed,
+			"最后测速" => EServerColName.lastTestTime,
+			_ => EServerColName.def
+		};
 	}
 
 	private void menuExit_Click(object sender, EventArgs e)
@@ -362,25 +461,28 @@ public class MainForm : Form
 		lvServers.BeginUpdate();
 		lvServers.Items.Clear();
 		int num = 0;
+		
+		// 确保有列顺序
+		if (currentColumnOrder == null)
+		{
+			currentColumnOrder = GetColumnOrder();
+		}
+		
 		for (int i = 0; i < config.vmess.Count; i++)
 		{
 			VmessItem vmessItem = config.vmess[i];
 			if ((currentSubFilter == null || (currentSubFilter == "__unassigned__" && string.IsNullOrEmpty(vmessItem.subid)) || (currentSubFilter != "__unassigned__" && vmessItem.subid == currentSubFilter)) && MatchesKeywordFilter(vmessItem.remarks))
 			{
 				num++;
-				ListViewItem listViewItem = new ListViewItem(num.ToString());
-				Utils.AddSubItem(listViewItem, EServerColName.configType.ToString(), ((EConfigType)vmessItem.configType/*cast due to .constrained prefix*/).ToString());
-				Utils.AddSubItem(listViewItem, EServerColName.remarks.ToString(), vmessItem.remarks);
-				Utils.AddSubItem(listViewItem, EServerColName.address.ToString(), vmessItem.address);
-				Utils.AddSubItem(listViewItem, EServerColName.port.ToString(), vmessItem.port.ToString());
-				Utils.AddSubItem(listViewItem, EServerColName.security.ToString(), vmessItem.security);
-				Utils.AddSubItem(listViewItem, EServerColName.network.ToString(), vmessItem.network);
-				Utils.AddSubItem(listViewItem, EServerColName.tls.ToString(), Utils.IsNullOrEmpty(vmessItem.streamSecurity) ? "none" : vmessItem.streamSecurity);
-				Utils.AddSubItem(listViewItem, EServerColName.subRemarks.ToString(), vmessItem.getSubRemarks(config));
-				Utils.AddSubItem(listViewItem, EServerColName.tlsRtt.ToString(), Utils.IsNullOrEmpty(vmessItem.tlsRtt) ? "" : vmessItem.tlsRtt);
-				Utils.AddSubItem(listViewItem, EServerColName.httpsDelay.ToString(), Utils.IsNullOrEmpty(vmessItem.httpsDelay) ? "" : vmessItem.httpsDelay);
-				Utils.AddSubItem(listViewItem, EServerColName.testResult.ToString(), vmessItem.testResult);
-				Utils.AddSubItem(listViewItem, EServerColName.MaxSpeed.ToString(), vmessItem.MaxSpeed);
+				ListViewItem listViewItem = new ListViewItem(GetColumnValue(vmessItem, currentColumnOrder[0], num));
+				
+				// 按列顺序添加 SubItems（跳过第一列，因为已经是 ListViewItem 的 Text）
+				for (int j = 1; j < currentColumnOrder.Count; j++)
+				{
+					string key = currentColumnOrder[j];
+					Utils.AddSubItem(listViewItem, key, GetColumnValue(vmessItem, key, num));
+				}
+				
 				if (config.recordTestTime)
 				{
 					Utils.AddSubItem(listViewItem, EServerColName.lastTestTime.ToString(), vmessItem.lastTestTime);
@@ -398,6 +500,28 @@ public class MainForm : Form
 		}
 		lvServers.EndUpdate();
 		UpdateUnassignedTabVisibility();
+	}
+
+	private string GetColumnValue(VmessItem vmessItem, string columnKey, int rowNum)
+	{
+		return columnKey switch
+		{
+			"def" => rowNum.ToString(),
+			"configType" => ((EConfigType)vmessItem.configType).ToString(),
+			"remarks" => vmessItem.remarks,
+			"address" => vmessItem.address,
+			"port" => vmessItem.port.ToString(),
+			"security" => vmessItem.security,
+			"network" => vmessItem.network,
+			"tls" => Utils.IsNullOrEmpty(vmessItem.streamSecurity) ? "none" : vmessItem.streamSecurity,
+			"subRemarks" => vmessItem.getSubRemarks(config),
+			"tlsRtt" => Utils.IsNullOrEmpty(vmessItem.tlsRtt) ? "" : vmessItem.tlsRtt,
+			"httpsDelay" => Utils.IsNullOrEmpty(vmessItem.httpsDelay) ? "" : vmessItem.httpsDelay,
+			"testResult" => vmessItem.testResult,
+			"MaxSpeed" => vmessItem.MaxSpeed,
+			"lastTestTime" => vmessItem.lastTestTime,
+			_ => ""
+		};
 	}
 
 	private int GetColumnWidth(string key, int defaultValue)
@@ -553,9 +677,13 @@ public class MainForm : Form
 		}
 		for (int i = 0; i < lvServers.Columns.Count; i++)
 		{
-			EServerColName eServerColName = (EServerColName)i;
+			EServerColName eServerColName = GetServerColNameByIndex(i);
 			int val = ConfigHandler.GetformMainLvColWidth(ref config, eServerColName.ToString(), lvServers.Columns[i].Width);
-			lvServers.Columns[i].Width = Math.Max(val, GetColumnHeaderMinWidth(i));
+			// 如果列被隐藏（宽度为0），保持隐藏状态
+			if (IsColumnVisible(eServerColName.ToString()))
+			{
+				lvServers.Columns[i].Width = Math.Max(val, GetColumnHeaderMinWidth(i));
+			}
 		}
 	}
 
@@ -563,6 +691,9 @@ public class MainForm : Form
 	{
 		for (int i = 0; i < lvServers.Columns.Count; i++)
 		{
+			// 跳过隐藏的列（宽度为0）
+			if (lvServers.Columns[i].Width == 0)
+				continue;
 			int columnHeaderMinWidth = GetColumnHeaderMinWidth(i);
 			if (columnHeaderMinWidth > 0 && lvServers.Columns[i].Width < columnHeaderMinWidth)
 			{
@@ -679,8 +810,12 @@ public class MainForm : Form
 		}
 		for (int i = 0; i < lvServers.Columns.Count; i++)
 		{
-			EServerColName eServerColName = (EServerColName)i;
-			ConfigHandler.AddformMainLvColWidth(ref config, eServerColName.ToString(), lvServers.Columns[i].Width);
+			EServerColName eServerColName = GetServerColNameByIndex(i);
+			string key = eServerColName.ToString();
+			// 跳过隐藏列，不保存宽度为0
+			if (!IsColumnVisible(key))
+				continue;
+			ConfigHandler.AddformMainLvColWidth(ref config, key, lvServers.Columns[i].Width);
 		}
 	}
 
@@ -1462,7 +1597,9 @@ public class MainForm : Form
 		{
 			string value = lvServers.Columns[e.Column].Tag?.ToString();
 			bool flag = Utils.IsNullOrEmpty(value) || !Convert.ToBoolean(value);
-			if (ConfigHandler.SortServers(ref config, (EServerColName)e.Column, flag) != 0)
+			// 根据列索引获取对应的枚举值（考虑隐藏列）
+			EServerColName colName = GetServerColNameByIndex(e.Column);
+			if (ConfigHandler.SortServers(ref config, colName, flag) != 0)
 			{
 				return;
 			}
@@ -2109,8 +2246,13 @@ public class MainForm : Form
 			RefreshServers();
 			if (!token.IsCancellationRequested)
 			{
-				lvServers.Columns[9].Tag = true;
-				lvServers_ColumnClick(null, new ColumnClickEventArgs(9));
+				// 按 TLS RTT 列排序
+				int tlsRttColIndex = GetColumnIndexByName("TLS RTT");
+				if (tlsRttColIndex >= 0)
+				{
+					lvServers.Columns[tlsRttColIndex].Tag = true;
+					lvServers_ColumnClick(null, new ColumnClickEventArgs(tlsRttColIndex));
+				}
 				Dictionary<string, int> dictionary2 = RemoveServer();
 				int num2 = dictionary2.Values.Sum();
 				if (num2 > 0)
@@ -2625,15 +2767,24 @@ public class MainForm : Form
 	{
 		try
 		{
+			EServerColName colName = GetServerColNameByIndex(e.ColumnIndex);
+			string key = colName.ToString();
+			
+			// 如果列被隐藏，不保存宽度变化
+			if (!IsColumnVisible(key))
+				return;
+			
 			int columnHeaderMinWidth = GetColumnHeaderMinWidth(e.ColumnIndex);
 			if (columnHeaderMinWidth > 0 && lvServers.Columns[e.ColumnIndex].Width < columnHeaderMinWidth)
 			{
 				lvServers.Columns[e.ColumnIndex].Width = columnHeaderMinWidth;
 			}
-			if (config.uiItem?.mainLvColWidth != null && e.ColumnIndex < config.uiItem.mainLvColWidth.Count)
+			if (config.uiItem?.mainLvColWidth != null)
 			{
-				string key = config.uiItem.mainLvColWidth.ElementAt(e.ColumnIndex).Key;
-				config.uiItem.mainLvColWidth[key] = lvServers.Columns[e.ColumnIndex].Width;
+				if (config.uiItem.mainLvColWidth.ContainsKey(key))
+				{
+					config.uiItem.mainLvColWidth[key] = lvServers.Columns[e.ColumnIndex].Width;
+				}
 			}
 		}
 		catch
@@ -2643,6 +2794,15 @@ public class MainForm : Form
 
 	private void lvServers_ColumnWidthChanging(object sender, ColumnWidthChangingEventArgs e)
 	{
+		// 如果列当前是隐藏的（宽度为0），不允许用户调整
+		EServerColName colName = GetServerColNameByIndex(e.ColumnIndex);
+		if (!IsColumnVisible(colName.ToString()))
+		{
+			e.NewWidth = 0;
+			e.Cancel = true;
+			return;
+		}
+		
 		if (e.NewWidth < 0)
 		{
 			int num = CalculateAutoColumnWidth(e.ColumnIndex);
@@ -2949,15 +3109,17 @@ public class MainForm : Form
 
 	private int GetSortColumnIndex()
 	{
-		return cmbSortColumn.SelectedIndex switch
+		// 根据下拉框选择获取对应的列名，然后查找实际的列索引
+		string columnText = cmbSortColumn.SelectedIndex switch
 		{
-			0 => 11, 
-			1 => 12, 
-			2 => 9, 
-			3 => 10, 
-			4 => 13, 
-			_ => 11, 
+			0 => "平均速度",
+			1 => "峰值速度",
+			2 => "TLS RTT",
+			3 => "HTTPS延迟",
+			4 => "最后测速",
+			_ => "平均速度",
 		};
+		return GetColumnIndexByName(columnText);
 	}
 
 	private double GetSortValue(ListViewItem item, int columnIndex)
@@ -3053,19 +3215,42 @@ public class MainForm : Form
 			Owner = this
 		}.ShowDialog() == DialogResult.OK)
 		{
-			UpdateLastTestTimeColumnVisibility();
+			// 重新初始化列表视图以应用列可见性设置
+			ReinitializeServersView();
 			AppendText(notify: false, "设置已生效（需手动保存配置）");
 		}
+	}
+
+	private void ReinitializeServersView()
+	{
+		lvServers.BeginUpdate();
+		lvServers.Columns.Clear();
+		lvServers.Items.Clear();
+		lvServers.EndUpdate();
+		// 重新获取列顺序
+		currentColumnOrder = null;
+		InitServersView();
+		RefreshServers();
 	}
 
 	private void UpdateLastTestTimeColumnVisibility()
 	{
 		lvServers.BeginUpdate();
+		bool hasLastTestTimeColumn = false;
+		for (int i = 0; i < lvServers.Columns.Count; i++)
+		{
+			if (lvServers.Columns[i].Text == "最后测速")
+			{
+				hasLastTestTimeColumn = true;
+				break;
+			}
+		}
+		
 		if (config.recordTestTime)
 		{
-			if (lvServers.Columns.Count == 13)
+			if (!hasLastTestTimeColumn)
 			{
-				lvServers.Columns.Add("最后测速", 130, HorizontalAlignment.Center);
+				lvServers.Columns.Add("最后测速", GetColumnWidth("lastTestTime", 130), HorizontalAlignment.Center);
 				RefreshServers();
 			}
 			if (!cmbSortColumn.Items.Contains("最后测速"))
@@ -3075,9 +3260,16 @@ public class MainForm : Form
 		}
 		else
 		{
-			if (lvServers.Columns.Count > 13)
+			if (hasLastTestTimeColumn)
 			{
-				lvServers.Columns.RemoveAt(13);
+				for (int i = lvServers.Columns.Count - 1; i >= 0; i--)
+				{
+					if (lvServers.Columns[i].Text == "最后测速")
+					{
+						lvServers.Columns.RemoveAt(i);
+						break;
+					}
+				}
 				RefreshServers();
 			}
 			if (cmbSortColumn.Items.Contains("最后测速"))
