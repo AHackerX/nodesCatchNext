@@ -24,14 +24,21 @@ public static class ClashYamlParser
         if (proxiesIndex < 0)
             return result;
 
-        string proxiesSection = yamlContent.Substring(proxiesIndex);
+        string proxiesSection = yamlContent.Substring(proxiesIndex + 8); // 跳过 "proxies:"
         
         // 找到下一个顶级键（proxy-groups:, rules: 等）作为结束
+        // 支持有换行和无换行两种格式
         string[] topLevelKeys = { "proxy-groups:", "rules:", "rule-providers:", "proxy-providers:" };
         int endIndex = proxiesSection.Length;
         foreach (var key in topLevelKeys)
         {
+            // 尝试带换行的格式
             int idx = proxiesSection.IndexOf("\n" + key);
+            if (idx > 0 && idx < endIndex)
+                endIndex = idx;
+            
+            // 尝试不带换行的格式（紧凑格式）
+            idx = proxiesSection.IndexOf(key);
             if (idx > 0 && idx < endIndex)
                 endIndex = idx;
         }
@@ -54,20 +61,14 @@ public static class ClashYamlParser
     {
         var blocks = new List<string>();
         
-        // 处理紧凑格式：proxies:- {name: xxx}- {name: yyy}（没有换行）
-        // 先尝试用正则提取所有 - {...} 格式的单行节点
-        var inlineMatches = Regex.Matches(proxiesSection, @"-\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}");
-        if (inlineMatches.Count > 0)
-        {
-            foreach (Match match in inlineMatches)
-            {
-                blocks.Add(match.Value);
-            }
-            return blocks;
-        }
+        // 预处理：将紧凑格式 }- { 或 }-{ 转换为带换行的格式
+        proxiesSection = Regex.Replace(proxiesSection, @"\}\s*-\s*\{", "}\n- {");
         
-        // 如果没有匹配到单行格式，使用原来的多行解析逻辑
-        var lines = proxiesSection.Split(new[] { '\n' }, StringSplitOptions.None);
+        // 预处理：确保 - { 前面有换行（处理 proxies:- { 这种情况）
+        proxiesSection = Regex.Replace(proxiesSection, @"^-\s*\{", "\n- {");
+        
+        // 按行分割，处理每一行
+        var lines = proxiesSection.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
         var currentBlock = new List<string>();
         bool inProxy = false;
 
@@ -75,11 +76,16 @@ public static class ClashYamlParser
         {
             string trimmed = line.TrimStart();
             
-            // 检测单行格式: - {name: xxx, server: xxx, ...}
-            if (trimmed.StartsWith("- {") && trimmed.Contains("}"))
+            // 检测单行 JSON 格式: - {name: xxx, server: xxx, ...}
+            // 使用更智能的方式提取完整的 JSON 对象
+            if (trimmed.StartsWith("- {"))
             {
-                blocks.Add(trimmed);
-                continue;
+                string jsonBlock = ExtractJsonBlock(trimmed);
+                if (!string.IsNullOrEmpty(jsonBlock))
+                {
+                    blocks.Add(jsonBlock);
+                    continue;
+                }
             }
             
             // 检测多行格式新代理块开始
@@ -105,6 +111,60 @@ public static class ClashYamlParser
         }
 
         return blocks;
+    }
+
+    /// <summary>
+    /// 从行中提取完整的 JSON 对象，正确处理嵌套花括号
+    /// </summary>
+    private static string ExtractJsonBlock(string line)
+    {
+        // 找到第一个 { 的位置
+        int startIndex = line.IndexOf('{');
+        if (startIndex < 0)
+            return null;
+
+        int braceCount = 0;
+        bool inQuote = false;
+        char quoteChar = '\0';
+
+        for (int i = startIndex; i < line.Length; i++)
+        {
+            char c = line[i];
+
+            // 处理引号（跳过转义的引号）
+            if ((c == '"' || c == '\'') && (i == 0 || line[i - 1] != '\\'))
+            {
+                if (!inQuote)
+                {
+                    inQuote = true;
+                    quoteChar = c;
+                }
+                else if (c == quoteChar)
+                {
+                    inQuote = false;
+                    quoteChar = '\0';
+                }
+                continue;
+            }
+
+            // 不在引号内时计算花括号
+            if (!inQuote)
+            {
+                if (c == '{')
+                    braceCount++;
+                else if (c == '}')
+                {
+                    braceCount--;
+                    if (braceCount == 0)
+                    {
+                        // 找到完整的 JSON 对象
+                        return "- " + line.Substring(startIndex, i - startIndex + 1);
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     private static VmessItem ParseProxyBlock(string block)
@@ -252,6 +312,7 @@ public static class ClashYamlParser
 
     /// <summary>
     /// 解析单行 YAML 格式: {name: xxx, server: xxx, port: 443, type: http, ...}
+    /// 也支持 JSON 格式: {"name":"xxx", "server":"xxx", ...}
     /// </summary>
     private static Dictionary<string, string> ParseInlineYaml(string inline)
     {
@@ -274,8 +335,11 @@ public static class ClashYamlParser
                 string key = pair.Substring(0, colonIndex).Trim();
                 string value = pair.Substring(colonIndex + 1).Trim();
                 
-                // 移除引号
-                value = value.Trim('\'', '"');
+                // 移除 key 的引号（JSON 格式）
+                key = key.Trim('"', '\'');
+                
+                // 移除 value 的引号
+                value = value.Trim('"', '\'');
                 
                 props[key] = value;
             }
