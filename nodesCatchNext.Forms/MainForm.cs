@@ -1768,7 +1768,11 @@ public class MainForm : Form
 					if (item >= 0 && item < config.vmess.Count)
 					{
 						speedtestNodeMap[item] = config.vmess[item];
-						SetHttpsDelay(item, "");
+						// 使用 Invoke 确保在 UI 线程上更新
+						lvServers.Invoke((MethodInvoker)delegate
+						{
+							SetHttpsDelay(item, "");
+						});
 					}
 				}
 				SpeedtestHandler httpsHandler = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, list, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateHttpsDelayHandler, action, pid);
@@ -1857,6 +1861,8 @@ public class MainForm : Form
 				});
 				return;
 			}
+			// 更新 lvSelecteds 为当前要测速的节点列表，确保配置文件中的代理名称与测速时使用的索引一致
+			lvSelecteds = list2;
 			try
 			{
 				createYamlConfig();
@@ -1876,7 +1882,11 @@ public class MainForm : Form
 				if (item4 >= 0 && item4 < config.vmess.Count)
 				{
 					speedtestNodeMap[item4] = config.vmess[item4];
-					SetTestResult(item4, "等待测速线程...");
+					// 使用 Invoke 确保在 UI 线程上更新
+					lvServers.Invoke((MethodInvoker)delegate
+					{
+						SetTestResult(item4, "等待测速线程...");
+					});
 				}
 			}
 			SpeedtestHandler testSpeed = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, list2, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, action, pid);
@@ -1997,7 +2007,11 @@ public class MainForm : Form
 					{
 						foreach (int lvSelected2 in lvSelecteds)
 						{
-							SetHttpsDelay(lvSelected2, "");
+							// 使用 Invoke 确保在 UI 线程上更新
+							lvServers.Invoke((MethodInvoker)delegate
+							{
+								SetHttpsDelay(lvSelected2, "");
+							});
 						}
 					}).Wait();
 					SpeedtestHandler statistics = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, lvSelecteds, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateHttpsDelayHandler, btStopTestStat, pid);
@@ -2087,7 +2101,11 @@ public class MainForm : Form
 			{
 				foreach (int lvSelected4 in lvSelecteds)
 				{
-					SetTestResult(lvSelected4, "等待测速线程...");
+					// 使用 Invoke 确保在 UI 线程上更新
+					lvServers.Invoke((MethodInvoker)delegate
+					{
+						SetTestResult(lvSelected4, "等待测速线程...");
+					});
 				}
 			}).Wait();
 			SpeedtestHandler testSpeed = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, lvSelecteds, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, btStopTestStat, pid);
@@ -2277,6 +2295,9 @@ public class MainForm : Form
 			bool httpsDelayFailed = !httpsDelayPending && text3.IndexOf("ms") == -1;
 			bool testResultFailed = !testResultPending && text4.IndexOf("MB/s") == -1 && text4.IndexOf("KB/s") == -1;
 			
+			// 检查是否为请求被中止/取消的错误
+			bool testResultAborted = !testResultPending && (text4.Contains("请求被中止") || text4.Contains("请求已被取消") || text4.Contains("Aborted") || text4.Contains("Canceled"));
+			
 			if (config.strictExclusionMode)
 			{
 				// 严格模式：HTTPS延迟失败 或 下载测速失败，满足一个就删除
@@ -2305,6 +2326,11 @@ public class MainForm : Form
 				{
 					// HTTPS未测试但下载测速失败，视为失败
 					text = ((!text4.Contains("超时") && !text4.Contains("Timeout")) ? ((!text4.Contains("连接失败") && !text4.Contains("无法连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
+				}
+				else if (testResultAborted)
+				{
+					// 请求被中止/取消的情况，视为失败
+					text = "平均速度测试请求被中止";
 				}
 			}
 			
