@@ -3,9 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
-using System.Net.Security;
-using System.Net.Sockets;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -26,8 +23,6 @@ public class SpeedtestHandler
 
 	private Action<int, string> _updateMaxFunc;
 
-	private Action<int, string> _updateTlsRttFunc;
-
 	private Action<int, string> _updateHttpsDelayFunc;
 
 	private Action<bool> _btStopTestStat;
@@ -38,32 +33,23 @@ public class SpeedtestHandler
 
 	private Dictionary<int, VmessItem> _nodeSnapshot;
 
-	private HashSet<int> _tlsRttFailedNodes;
-
 	public SpeedtestHandler(ref Config config, ref CancellationTokenSource cts, ref V2rayHandler v2rayHandler, List<int> selecteds, Action<int, string> update, Action<int, string> updateMax, Action<bool> btStopTestStat, int pid)
 		: this(ref config, ref cts, ref v2rayHandler, selecteds, update, updateMax, null, btStopTestStat, pid)
 	{
 	}
 
-	public SpeedtestHandler(ref Config config, ref CancellationTokenSource cts, ref V2rayHandler v2rayHandler, List<int> selecteds, Action<int, string> update, Action<int, string> updateMax, Action<int, string> updateTlsRtt, Action<bool> btStopTestStat, int pid)
-		: this(ref config, ref cts, ref v2rayHandler, selecteds, update, updateMax, updateTlsRtt, null, btStopTestStat, pid)
-	{
-	}
-
-	public SpeedtestHandler(ref Config config, ref CancellationTokenSource cts, ref V2rayHandler v2rayHandler, List<int> selecteds, Action<int, string> update, Action<int, string> updateMax, Action<int, string> updateTlsRtt, Action<int, string> updateHttpsDelay, Action<bool> btStopTestStat, int pid)
+	public SpeedtestHandler(ref Config config, ref CancellationTokenSource cts, ref V2rayHandler v2rayHandler, List<int> selecteds, Action<int, string> update, Action<int, string> updateMax, Action<int, string> updateHttpsDelay, Action<bool> btStopTestStat, int pid)
 	{
 		_config = config;
 		_v2rayHandler = v2rayHandler;
 		_selecteds = Utils.DeepCopy(selecteds);
 		_updateFunc = update;
 		_updateMaxFunc = updateMax;
-		_updateTlsRttFunc = updateTlsRtt;
 		_updateHttpsDelayFunc = updateHttpsDelay;
 		_btStopTestStat = btStopTestStat;
 		_cts = cts;
 		_pid = pid;
 		_nodeSnapshot = new Dictionary<int, VmessItem>();
-		_tlsRttFailedNodes = new HashSet<int>();
 		foreach (int selected in _selecteds)
 		{
 			if (selected >= 0 && selected < _config.vmess.Count)
@@ -78,25 +64,18 @@ public class SpeedtestHandler
 	{
 	}
 
-	public SpeedtestHandler(ref Config config, ref CancellationTokenSource cts, ref V2rayHandler v2rayHandler, List<int> selecteds, string actionType, Action<int, string> update, Action<int, string> updateMax, Action<int, string> updateTlsRtt, Action<bool> btStopTestStat, int pid)
-		: this(ref config, ref cts, ref v2rayHandler, selecteds, actionType, update, updateMax, updateTlsRtt, null, btStopTestStat, pid)
-	{
-	}
-
-	public SpeedtestHandler(ref Config config, ref CancellationTokenSource cts, ref V2rayHandler v2rayHandler, List<int> selecteds, string actionType, Action<int, string> update, Action<int, string> updateMax, Action<int, string> updateTlsRtt, Action<int, string> updateHttpsDelay, Action<bool> btStopTestStat, int pid)
+	public SpeedtestHandler(ref Config config, ref CancellationTokenSource cts, ref V2rayHandler v2rayHandler, List<int> selecteds, string actionType, Action<int, string> update, Action<int, string> updateMax, Action<int, string> updateHttpsDelay, Action<bool> btStopTestStat, int pid)
 	{
 		_config = config;
 		_v2rayHandler = v2rayHandler;
 		_selecteds = Utils.DeepCopy(selecteds);
 		_updateFunc = update;
 		_updateMaxFunc = updateMax;
-		_updateTlsRttFunc = updateTlsRtt;
 		_updateHttpsDelayFunc = updateHttpsDelay;
 		_btStopTestStat = btStopTestStat;
 		_cts = cts;
 		_pid = pid;
 		_nodeSnapshot = new Dictionary<int, VmessItem>();
-		_tlsRttFailedNodes = new HashSet<int>();
 		foreach (int selected in _selecteds)
 		{
 			if (selected >= 0 && selected < _config.vmess.Count)
@@ -108,21 +87,6 @@ public class SpeedtestHandler
 		switch (actionType)
 		{
 		case "realping":
-			if (_config.ThreadNum == 0)
-			{
-				Task.Run(delegate
-				{
-					RunRealPing(token);
-				}, token);
-			}
-			else
-			{
-				Task.Run(delegate
-				{
-					RunRealPing2(token);
-				}, token);
-			}
-			break;
 		case "httpsdelay":
 			if (_config.ThreadNum == 0)
 			{
@@ -138,27 +102,6 @@ public class SpeedtestHandler
 					RunRealPing2(token);
 				}, token);
 			}
-			break;
-		case "combined_rtt_https":
-			Task.Run(delegate
-			{
-				RunTlsRtt(token);
-				Thread.Sleep(1000);
-				if (_config.ThreadNum == 0)
-				{
-					RunRealPing(token);
-				}
-				else
-				{
-					RunRealPing2(token);
-				}
-			}, token);
-			break;
-		case "tlsrtt":
-			Task.Run(delegate
-			{
-				RunTlsRtt(token);
-			}, token);
 			break;
 		case "speedtest":
 			if (_config.DownloadThreadNum == 0)
@@ -371,55 +314,37 @@ public class SpeedtestHandler
 						int currentNodeIndex = GetCurrentNodeIndex(originalIndex);
 						if (currentNodeIndex >= 0)
 						{
-							bool flag = false;
-							if (_config.strictExclusionMode)
+							if (_updateHttpsDelayFunc != null)
 							{
-								lock (_tlsRttFailedNodes)
+								_updateHttpsDelayFunc(currentNodeIndex, "正在测速...");
+							}
+							_ = httpPort;
+							bool flag2 = currentNodeIndex >= 0 && currentNodeIndex < _config.vmess.Count && _config.vmess[currentNodeIndex].configType == 11;
+							WebProxy webProxy = new WebProxy("127.0.0.1", httpPort + currentNodeIndex);
+							int responseTime = -1;
+							GetRealPingTime2(_config.speedPingTestUrl, extendedTimeout + 1000, webProxy, out responseTime);
+							if (responseTime == -1 && flag2 && _config.ThreadNum == 0)
+							{
+								try
 								{
-									flag = _tlsRttFailedNodes.Contains(currentNodeIndex);
+									int num3 = httpPort + currentNodeIndex;
+									string url = $"http://{_config.externalController}/proxies/{num3}/delay?timeout={extendedTimeout}&url={_config.speedPingTestUrl}";
+									Match match = Regex.Match(GetRealPingTime(url, extendedTimeout + 1000), ".*delay.+:([0-9]{1,4})}");
+									if (match.Success)
+									{
+										responseTime = int.Parse(match.Groups[1].Value);
+									}
+								}
+								catch
+								{
 								}
 							}
-							if (flag)
+							if (currentNodeIndex >= 0 && currentNodeIndex < _config.vmess.Count)
 							{
-								if (_updateHttpsDelayFunc != null && currentNodeIndex >= 0 && currentNodeIndex < _config.vmess.Count)
-								{
-									_updateHttpsDelayFunc(currentNodeIndex, "TLS RTT测速失败，已跳过");
-								}
-							}
-							else
-							{
+								string arg = FormatOut2(responseTime, "ms");
 								if (_updateHttpsDelayFunc != null)
 								{
-									_updateHttpsDelayFunc(currentNodeIndex, "正在测速...");
-								}
-								_ = httpPort;
-								bool flag2 = currentNodeIndex >= 0 && currentNodeIndex < _config.vmess.Count && _config.vmess[currentNodeIndex].configType == 11;
-								WebProxy webProxy = new WebProxy("127.0.0.1", httpPort + currentNodeIndex);
-								int responseTime = -1;
-								GetRealPingTime2(_config.speedPingTestUrl, extendedTimeout + 1000, webProxy, out responseTime);
-								if (responseTime == -1 && flag2 && _config.ThreadNum == 0)
-								{
-									try
-									{
-										int num3 = httpPort + currentNodeIndex;
-										string url = $"http://{_config.externalController}/proxies/{num3}/delay?timeout={extendedTimeout}&url={_config.speedPingTestUrl}";
-										Match match = Regex.Match(GetRealPingTime(url, extendedTimeout + 1000), ".*delay.+:([0-9]{1,4})}");
-										if (match.Success)
-										{
-											responseTime = int.Parse(match.Groups[1].Value);
-										}
-									}
-									catch
-									{
-									}
-								}
-								if (currentNodeIndex >= 0 && currentNodeIndex < _config.vmess.Count)
-								{
-									string arg = FormatOut2(responseTime, "ms");
-									if (_updateHttpsDelayFunc != null)
-									{
-										_updateHttpsDelayFunc(currentNodeIndex, arg);
-									}
+									_updateHttpsDelayFunc(currentNodeIndex, arg);
 								}
 							}
 						}
@@ -483,35 +408,17 @@ public class SpeedtestHandler
 						int currentNodeIndex = GetCurrentNodeIndex(originalIndex);
 						if (currentNodeIndex >= 0)
 						{
-							bool flag = false;
-							if (_config.strictExclusionMode)
+							if (_updateHttpsDelayFunc != null)
 							{
-								lock (_tlsRttFailedNodes)
-								{
-									flag = _tlsRttFailedNodes.Contains(currentNodeIndex);
-								}
+								_updateHttpsDelayFunc(currentNodeIndex, "正在测速...");
 							}
-							if (flag)
+							int num2 = httpPort + currentNodeIndex;
+							string url = $"http://{_config.externalController}/proxies/{num2}/delay?timeout={timeOut}&url={_config.speedPingTestUrl}";
+							string realPingTime = GetRealPingTime(url, timeOut + 1);
+							string arg = FormatOut(realPingTime, "ms");
+							if (currentNodeIndex >= 0 && currentNodeIndex < _config.vmess.Count && _updateHttpsDelayFunc != null)
 							{
-								if (_updateHttpsDelayFunc != null && currentNodeIndex >= 0 && currentNodeIndex < _config.vmess.Count)
-								{
-									_updateHttpsDelayFunc(currentNodeIndex, "TLS RTT测速失败，已跳过");
-								}
-							}
-							else
-							{
-								if (_updateHttpsDelayFunc != null)
-								{
-									_updateHttpsDelayFunc(currentNodeIndex, "正在测速...");
-								}
-								int num2 = httpPort + currentNodeIndex;
-								string url = $"http://{_config.externalController}/proxies/{num2}/delay?timeout={timeOut}&url={_config.speedPingTestUrl}";
-								string realPingTime = GetRealPingTime(url, timeOut + 1);
-								string arg = FormatOut(realPingTime, "ms");
-								if (currentNodeIndex >= 0 && currentNodeIndex < _config.vmess.Count && _updateHttpsDelayFunc != null)
-								{
-									_updateHttpsDelayFunc(currentNodeIndex, arg);
-								}
+								_updateHttpsDelayFunc(currentNodeIndex, arg);
 							}
 						}
 					}
@@ -620,194 +527,6 @@ public class SpeedtestHandler
 			return "超时";
 		}
 		return $"{time}{unit}".PadLeft(8, ' ');
-	}
-
-	public void RunTlsRtt(CancellationToken ct)
-	{
-		try
-		{
-			int httpPort = _config.GetLocalPort("speedtest");
-			int num = (int)(Convert.ToDouble(_config.Timeout) * 1000.0);
-			int extendedTimeout = num * 2;
-			int num2 = int.Parse(_config.Thread);
-			if (!ThreadPool.SetMinThreads(num2, num2))
-			{
-				_v2rayHandler.ShowMsg(updateToTrayTooltip: false, "线程设置失败！将由系统默认分配线程");
-			}
-			List<Action> list = new List<Action>();
-			foreach (int selected in _selecteds)
-			{
-				int originalIndex = selected;
-				list.Add(delegate
-				{
-					try
-					{
-						if (ct.IsCancellationRequested)
-						{
-							throw new OperationCanceledException();
-						}
-						int currentNodeIndex = GetCurrentNodeIndex(originalIndex);
-						if (currentNodeIndex >= 0)
-						{
-							if (_updateTlsRttFunc != null)
-							{
-								_updateTlsRttFunc(currentNodeIndex, "正在测试...");
-							}
-							int tlsRtt = -1;
-							string text = _config.speedPingTestUrl.Replace("http://", "https://");
-							if (!text.StartsWith("https://"))
-							{
-								text = "https://www.cloudflare.com";
-							}
-							if (_config.ThreadNum == 0)
-							{
-								try
-								{
-									int num3 = httpPort + currentNodeIndex;
-									string url = $"http://{_config.externalController}/proxies/{num3}/delay?timeout={extendedTimeout}&url={text}";
-									Match match = Regex.Match(GetRealPingTime(url, extendedTimeout + 1000), ".*delay.+:([0-9]{1,4})}");
-									if (match.Success)
-									{
-										tlsRtt = int.Parse(match.Groups[1].Value);
-									}
-								}
-								catch
-								{
-								}
-							}
-							if (tlsRtt == -1)
-							{
-								int proxyPort = _config.localPort + currentNodeIndex;
-								GetTlsRttTime(text, extendedTimeout + 1000, proxyPort, out tlsRtt);
-							}
-							if (currentNodeIndex >= 0 && currentNodeIndex < _config.vmess.Count)
-							{
-								string arg = FormatOut2(tlsRtt, "ms");
-								if (_updateTlsRttFunc != null)
-								{
-									_updateTlsRttFunc(currentNodeIndex, arg);
-								}
-								if (_config.strictExclusionMode && tlsRtt == -1)
-								{
-									lock (_tlsRttFailedNodes)
-									{
-										_tlsRttFailedNodes.Add(currentNodeIndex);
-										return;
-									}
-								}
-							}
-						}
-					}
-					catch
-					{
-						int currentNodeIndex2 = GetCurrentNodeIndex(originalIndex);
-						if (currentNodeIndex2 >= 0 && currentNodeIndex2 < _config.vmess.Count && _updateTlsRttFunc != null)
-						{
-							_updateTlsRttFunc(currentNodeIndex2, "测速被取消");
-						}
-					}
-				});
-			}
-			Parallel.Invoke(new ParallelOptions
-			{
-				MaxDegreeOfParallelism = num2
-			}, list.ToArray());
-		}
-		catch (Exception)
-		{
-		}
-		finally
-		{
-			if (!ThreadPool.SetMinThreads(Environment.ProcessorCount, Environment.ProcessorCount))
-			{
-				_v2rayHandler.ShowMsg(updateToTrayTooltip: false, "线程设置失败！将由系统默认分配线程");
-			}
-			if (_pid > 0)
-			{
-				_v2rayHandler.V2rayStopPid(_pid);
-			}
-			_btStopTestStat(obj: false);
-			_v2rayHandler.ShowMsg(updateToTrayTooltip: false, "TLS RTT 测速执行完成！");
-		}
-	}
-
-	private void GetTlsRttTime(string url, int timeout, int proxyPort, out int tlsRtt)
-	{
-		tlsRtt = -1;
-		TcpClient tcpClient = null;
-		NetworkStream networkStream = null;
-		SslStream sslStream = null;
-		try
-		{
-			Uri uri = new Uri(url);
-			string host = uri.Host;
-			int num = ((uri.Port > 0) ? uri.Port : 443);
-			tcpClient = new TcpClient();
-			tcpClient.ReceiveTimeout = timeout;
-			tcpClient.SendTimeout = timeout;
-			IAsyncResult asyncResult = tcpClient.BeginConnect("127.0.0.1", proxyPort, null, null);
-			if (!asyncResult.AsyncWaitHandle.WaitOne(Math.Min(timeout, 5000), exitContext: false))
-			{
-				return;
-			}
-			tcpClient.EndConnect(asyncResult);
-			networkStream = tcpClient.GetStream();
-			networkStream.ReadTimeout = timeout;
-			networkStream.WriteTimeout = timeout;
-			string s = $"CONNECT {host}:{num} HTTP/1.1\r\nHost: {host}:{num}\r\nConnection: keep-alive\r\n\r\n";
-			byte[] bytes = Encoding.ASCII.GetBytes(s);
-			networkStream.Write(bytes, 0, bytes.Length);
-			networkStream.Flush();
-			byte[] array = new byte[1024];
-			int num2 = networkStream.Read(array, 0, array.Length);
-			if (num2 != 0)
-			{
-				string text = Encoding.ASCII.GetString(array, 0, num2);
-				if (text.Contains("200") || text.Contains("Connection established"))
-				{
-					sslStream = new SslStream(networkStream, leaveInnerStreamOpen: false, ValidateServerCertificate, null);
-					sslStream.ReadTimeout = timeout;
-					sslStream.WriteTimeout = timeout;
-					Stopwatch stopwatch = new Stopwatch();
-					stopwatch.Start();
-					sslStream.AuthenticateAsClient(host);
-					stopwatch.Stop();
-					tlsRtt = (int)stopwatch.Elapsed.TotalMilliseconds;
-				}
-			}
-		}
-		catch (Exception)
-		{
-		}
-		finally
-		{
-			try
-			{
-				sslStream?.Close();
-			}
-			catch
-			{
-			}
-			try
-			{
-				networkStream?.Close();
-			}
-			catch
-			{
-			}
-			try
-			{
-				tcpClient?.Close();
-			}
-			catch
-			{
-			}
-		}
-	}
-
-	private bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
-	{
-		return true;
 	}
 
 	private bool IsNodeStillValid(int index)

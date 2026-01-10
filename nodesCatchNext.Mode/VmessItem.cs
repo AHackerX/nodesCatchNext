@@ -33,8 +33,6 @@ public class VmessItem
 
 	public int configType { get; set; }
 
-	public string tlsRtt { get; set; }
-
 	public string httpsDelay { get; set; }
 
 	public string testResult { get; set; }
@@ -73,7 +71,6 @@ public class VmessItem
 		streamSecurity = string.Empty;
 		allowInsecure = string.Empty;
 		configType = 1;
-		tlsRtt = string.Empty;
 		httpsDelay = string.Empty;
 		testResult = string.Empty;
 		lastTestTime = string.Empty;

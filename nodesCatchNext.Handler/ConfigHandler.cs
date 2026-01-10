@@ -76,7 +76,6 @@ internal class ConfigHandler
 				{ "network", 70 },
 				{ "tls", 80 },
 				{ "subRemarks", 70 },
-				{ "tlsRtt", 80 },
 				{ "httpsDelay", 80 },
 				{ "testResult", 200 },
 				{ "MaxSpeed", 80 }
@@ -84,10 +83,6 @@ internal class ConfigHandler
 		}
 		else
 		{
-			if (!config.uiItem.mainLvColWidth.ContainsKey("tlsRtt"))
-			{
-				config.uiItem.mainLvColWidth.Add("tlsRtt", 80);
-			}
 			if (!config.uiItem.mainLvColWidth.ContainsKey("httpsDelay"))
 			{
 				config.uiItem.mainLvColWidth.Add("httpsDelay", 80);
@@ -107,7 +102,6 @@ internal class ConfigHandler
 				{ "network", true },
 				{ "tls", true },
 				{ "subRemarks", true },
-				{ "tlsRtt", true },
 				{ "httpsDelay", true },
 				{ "testResult", true },
 				{ "MaxSpeed", true }
@@ -659,7 +653,7 @@ internal class ConfigHandler
 		{
 			return -1;
 		}
-		if ((uint)(name - 1) > 5u && (uint)(name - 8) > 1u && name != EServerColName.MaxSpeed && name != EServerColName.tls && name != EServerColName.subRemarks && name != EServerColName.tlsRtt && name != EServerColName.httpsDelay && name != EServerColName.testResult && name != EServerColName.lastTestTime)
+		if ((uint)(name - 1) > 5u && (uint)(name - 8) > 1u && name != EServerColName.MaxSpeed && name != EServerColName.tls && name != EServerColName.subRemarks && name != EServerColName.httpsDelay && name != EServerColName.testResult && name != EServerColName.lastTestTime)
 		{
 			return -1;
 		}
@@ -702,31 +696,17 @@ internal class ConfigHandler
 			}
 			break;
 		}
-		case EServerColName.tlsRtt:
-			if (asc)
-			{
-				config.vmess = (from item in config.vmess
-					orderby HasTestResult(item.tlsRtt) descending, ParseTlsRtt(item.tlsRtt)
-					select item).ToList();
-			}
-			else
-			{
-				config.vmess = (from item in config.vmess
-					orderby HasTestResult(item.tlsRtt) descending, ParseTlsRtt(item.tlsRtt) descending
-					select item).ToList();
-			}
-			break;
 		case EServerColName.httpsDelay:
 			if (asc)
 			{
 				config.vmess = (from item in config.vmess
-					orderby HasTestResult(item.httpsDelay) descending, ParseTlsRtt(item.httpsDelay)
+					orderby HasTestResult(item.httpsDelay) descending, ParseHttpsDelay(item.httpsDelay)
 					select item).ToList();
 			}
 			else
 			{
 				config.vmess = (from item in config.vmess
-					orderby HasTestResult(item.httpsDelay) descending, ParseTlsRtt(item.httpsDelay) descending
+					orderby HasTestResult(item.httpsDelay) descending, ParseHttpsDelay(item.httpsDelay) descending
 					select item).ToList();
 			}
 			break;
@@ -775,17 +755,17 @@ internal class ConfigHandler
 		return 0;
 	}
 
-	private static double ParseTlsRtt(string tlsRtt)
+	private static double ParseHttpsDelay(string httpsDelay)
 	{
-		if (string.IsNullOrEmpty(tlsRtt))
+		if (string.IsNullOrEmpty(httpsDelay))
 		{
 			return -1.0;
 		}
-		if (tlsRtt.Contains("超时") || tlsRtt.Contains("Timeout") || tlsRtt.Contains("无法连接"))
+		if (httpsDelay.Contains("超时") || httpsDelay.Contains("Timeout") || httpsDelay.Contains("无法连接"))
 		{
 			return double.MaxValue;
 		}
-		if (tlsRtt.Contains("ms") && double.TryParse(tlsRtt.Replace("ms", "").Trim(), out var result))
+		if (httpsDelay.Contains("ms") && double.TryParse(httpsDelay.Replace("ms", "").Trim(), out var result))
 		{
 			return result;
 		}

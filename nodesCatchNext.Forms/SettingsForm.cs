@@ -54,7 +54,6 @@ public class SettingsForm : Form
 		("network", "传输协议"),
 		("tls", "TLS"),
 		("subRemarks", "订阅"),
-		("tlsRtt", "TLS RTT"),
 		("httpsDelay", "HTTPS延迟"),
 		("testResult", "平均速度"),
 		("MaxSpeed", "峰值速度")
@@ -102,6 +101,16 @@ public class SettingsForm : Form
 		
 		var colVisible = config.uiItem?.mainLvColVisible;
 		var colOrder = config.uiItem?.mainLvColOrder;
+		
+		// 清理旧的 tlsRtt 配置（已移除的功能）
+		if (colVisible != null && colVisible.ContainsKey("tlsRtt"))
+		{
+			colVisible.Remove("tlsRtt");
+		}
+		if (colOrder != null)
+		{
+			colOrder.RemoveAll(k => k == "tlsRtt");
+		}
 		
 		// 如果有保存的顺序，按顺序加载；否则使用默认顺序
 		List<(string key, string displayName)> orderedColumns;
@@ -457,7 +466,7 @@ public class SettingsForm : Form
             this.tbDelayTestUrl.Name = "tbDelayTestUrl";
             this.tbDelayTestUrl.Size = new System.Drawing.Size(600, 29);
             this.tbDelayTestUrl.TabIndex = 2;
-            this.toolTipSettings.SetToolTip(this.tbDelayTestUrl, "用于测试 TLS RTT 和 HTTPS 延迟的目标URL\r\n建议使用响应快、稳定的网站");
+            this.toolTipSettings.SetToolTip(this.tbDelayTestUrl, "用于测试 HTTPS 延迟的目标URL\r\n建议使用响应快、稳定的网站");
             // 
             // tbSpeedTestUrl
             // 

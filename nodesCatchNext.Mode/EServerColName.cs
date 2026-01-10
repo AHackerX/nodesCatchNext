@@ -11,7 +11,6 @@ public enum EServerColName
 	network,
 	tls,
 	subRemarks,
-	tlsRtt,
 	httpsDelay,
 	testResult,
 	MaxSpeed,

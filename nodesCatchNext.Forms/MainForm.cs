@@ -98,8 +98,6 @@ public class MainForm : Form
 
 	private ToolStripMenuItem menuDownLoadServer;
 
-	private ToolStripMenuItem menuTlsRttServer;
-
 	private ToolStripMenuItem menuHttpsDelayServer;
 
 	private ToolStripMenuItem menuAutoTestSelected;
@@ -308,7 +306,6 @@ public class MainForm : Form
 		("network", "传输协议", 70),
 		("tls", "TLS", 80),
 		("subRemarks", "订阅", 70),
-		("tlsRtt", "TLS RTT", 80),
 		("httpsDelay", "HTTPS延迟", 80),
 		("testResult", "平均速度", 200),
 		("MaxSpeed", "峰值速度", 80)
@@ -351,6 +348,20 @@ public class MainForm : Form
 
 	private List<string> GetColumnOrder()
 	{
+		// 清理旧的 tlsRtt 配置（已移除的功能）
+		if (config.uiItem?.mainLvColOrder != null)
+		{
+			config.uiItem.mainLvColOrder.RemoveAll(k => k == "tlsRtt");
+		}
+		if (config.uiItem?.mainLvColVisible != null && config.uiItem.mainLvColVisible.ContainsKey("tlsRtt"))
+		{
+			config.uiItem.mainLvColVisible.Remove("tlsRtt");
+		}
+		if (config.uiItem?.mainLvColWidth != null && config.uiItem.mainLvColWidth.ContainsKey("tlsRtt"))
+		{
+			config.uiItem.mainLvColWidth.Remove("tlsRtt");
+		}
+		
 		if (config.uiItem?.mainLvColOrder != null && config.uiItem.mainLvColOrder.Count > 0)
 		{
 			// 使用保存的顺序，但确保包含所有列
@@ -417,7 +428,6 @@ public class MainForm : Form
 			"传输协议" => EServerColName.network,
 			"TLS" => EServerColName.tls,
 			"订阅" => EServerColName.subRemarks,
-			"TLS RTT" => EServerColName.tlsRtt,
 			"HTTPS延迟" => EServerColName.httpsDelay,
 			"平均速度" => EServerColName.testResult,
 			"峰值速度" => EServerColName.MaxSpeed,
@@ -515,7 +525,6 @@ public class MainForm : Form
 			"network" => vmessItem.network,
 			"tls" => Utils.IsNullOrEmpty(vmessItem.streamSecurity) ? "none" : vmessItem.streamSecurity,
 			"subRemarks" => vmessItem.getSubRemarks(config),
-			"tlsRtt" => Utils.IsNullOrEmpty(vmessItem.tlsRtt) ? "" : vmessItem.tlsRtt,
 			"httpsDelay" => Utils.IsNullOrEmpty(vmessItem.httpsDelay) ? "" : vmessItem.httpsDelay,
 			"testResult" => vmessItem.testResult,
 			"MaxSpeed" => vmessItem.MaxSpeed,
@@ -837,19 +846,13 @@ public class MainForm : Form
 	private void menuRealPingServer_Click(object sender, EventArgs e)
 	{
 		btStopTest.Enabled = true;
-		Speedtest("combined_rtt_https");
+		Speedtest("httpsdelay");
 	}
 
 	private void menuDownLoadServer_Click(object sender, EventArgs e)
 	{
 		btStopTest.Enabled = true;
 		Speedtest("speedtest");
-	}
-
-	private void menuTlsRttServer_Click(object sender, EventArgs e)
-	{
-		btStopTest.Enabled = true;
-		Speedtest("tlsrtt");
 	}
 
 	private void menuHttpsDelayServer_Click(object sender, EventArgs e)
@@ -894,7 +897,7 @@ public class MainForm : Form
 				break;
 			}
 		}
-		if ((actionType == "realping" && config.ThreadNum == 0) || (actionType == "speedtest" && config.DownloadThreadNum == 0) || actionType == "tlsrtt" || actionType == "httpsdelay" || actionType == "combined_rtt_https" || flag)
+		if ((actionType == "realping" && config.ThreadNum == 0) || (actionType == "speedtest" && config.DownloadThreadNum == 0) || actionType == "httpsdelay" || flag)
 		{
 			try
 			{
@@ -921,29 +924,11 @@ public class MainForm : Form
 		}
 		switch (actionType)
 		{
-		case "tlsrtt":
-			foreach (int lvSelected3 in lvSelecteds)
-			{
-				SetTlsRtt(lvSelected3, "");
-			}
-			break;
 		case "httpsdelay":
+		case "realping":
 			foreach (int lvSelected4 in lvSelecteds)
 			{
 				SetHttpsDelay(lvSelected4, "");
-			}
-			break;
-		case "combined_rtt_https":
-			foreach (int lvSelected5 in lvSelecteds)
-			{
-				SetTlsRtt(lvSelected5, "");
-				SetHttpsDelay(lvSelected5, "");
-			}
-			break;
-		case "realping":
-			foreach (int lvSelected6 in lvSelecteds)
-			{
-				SetHttpsDelay(lvSelected6, "");
 			}
 			break;
 		case "speedtest":
@@ -962,11 +947,10 @@ public class MainForm : Form
 		{
 		case "realping":
 		case "httpsdelay":
-		case "combined_rtt_https":
-			new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, lvSelecteds, actionType, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateTlsRttHandler, UpdateHttpsDelayHandler, btStopTestStat, pid);
+			new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, lvSelecteds, actionType, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateHttpsDelayHandler, btStopTestStat, pid);
 			break;
 		default:
-			new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, lvSelecteds, actionType, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateTlsRttHandler, btStopTestStat, pid);
+			new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, lvSelecteds, actionType, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, btStopTestStat, pid);
 			break;
 		}
 	}
@@ -1029,23 +1013,6 @@ public class MainForm : Form
 		}
 	}
 
-	private void SetTlsRtt(int k, string txt)
-	{
-		if (k < 0 || k >= config.vmess.Count)
-		{
-			return;
-		}
-		config.vmess[k].tlsRtt = txt;
-		foreach (ListViewItem item in lvServers.Items)
-		{
-			if (item.Tag != null && (int)item.Tag == k)
-			{
-				item.SubItems["tlsRtt"].Text = txt;
-				break;
-			}
-		}
-	}
-
 	private void SetHttpsDelay(int k, string txt)
 	{
 		if (k < 0 || k >= config.vmess.Count)
@@ -1068,7 +1035,6 @@ public class MainForm : Form
 		foreach (int lvSelected in lvSelecteds)
 		{
 			SetTestResult(lvSelected, "等待测速线程...");
-			SetTlsRtt(lvSelected, "");
 		}
 	}
 
@@ -1225,14 +1191,6 @@ public class MainForm : Form
 		lvServers.Invoke((MethodInvoker)delegate
 		{
 			SetTestResult(index, msg);
-		});
-	}
-
-	private void UpdateTlsRttHandler(int index, string msg)
-	{
-		lvServers.Invoke((MethodInvoker)delegate
-		{
-			SetTlsRtt(index, msg);
 		});
 	}
 
@@ -1570,9 +1528,6 @@ public class MainForm : Form
 			case Keys.R:
 				menuRealPingServer_Click(null, null);
 				break;
-			case Keys.U:
-				menuTlsRttServer_Click(null, null);
-				break;
 			case Keys.Y:
 				menuHttpsDelayServer_Click(null, null);
 				break;
@@ -1713,7 +1668,6 @@ public class MainForm : Form
 				int num2 = (int)item.Tag;
 				if (num2 >= 0 && num2 < config.vmess.Count)
 				{
-					config.vmess[num2].tlsRtt = "";
 					config.vmess[num2].httpsDelay = "";
 					config.vmess[num2].testResult = "";
 					config.vmess[num2].MaxSpeed = "";
@@ -1721,7 +1675,6 @@ public class MainForm : Form
 					num++;
 				}
 			}
-			item.SubItems["tlsRtt"].Text = "";
 			item.SubItems["httpsDelay"].Text = "";
 			item.SubItems["testResult"].Text = "";
 			item.SubItems["MaxSpeed"].Text = "";
@@ -1801,42 +1754,6 @@ public class MainForm : Form
 		AppendText(notify: false, $"开始测试选中的 {list.Count} 个节点...");
 		if (cbRealPing.Checked)
 		{
-			AppendText(notify: false, "开始 TLS RTT 测试...");
-			config.index = 0;
-			try
-			{
-				createYamlConfig();
-			}
-			catch (Exception ex)
-			{
-				MessageBox.Show(ex.Message, "出现异常");
-				Invoke((Action)delegate
-				{
-					btStopTest.Enabled = false;
-				});
-				return;
-			}
-			speedtestNodeMap.Clear();
-			foreach (int item in list)
-			{
-				if (item >= 0 && item < config.vmess.Count)
-				{
-					speedtestNodeMap[item] = config.vmess[item];
-					SetTlsRtt(item, "");
-				}
-			}
-			SpeedtestHandler tlsRttHandler = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, list, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateTlsRttHandler, action, pid);
-			Thread thread = new Thread((ThreadStart)delegate
-			{
-				tlsRttHandler.RunTlsRtt(token);
-			});
-			thread.Start();
-			thread.Join();
-			RefreshServers();
-			Thread.Sleep(200);
-		}
-		if (cbRealPing.Checked && !token.IsCancellationRequested)
-		{
 			AppendText(notify: false, "开始 HTTPS 延迟测试...");
 			config.index = 0;
 			if (config.ThreadNum == 0)
@@ -1845,9 +1762,9 @@ public class MainForm : Form
 				{
 					createYamlConfig();
 				}
-				catch (Exception ex2)
+				catch (Exception ex)
 				{
-					MessageBox.Show(ex2.Message, "出现异常");
+					MessageBox.Show(ex.Message, "出现异常");
 					Invoke((Action)delegate
 					{
 						btStopTest.Enabled = false;
@@ -1855,32 +1772,32 @@ public class MainForm : Form
 					return;
 				}
 				speedtestNodeMap.Clear();
-				foreach (int item2 in list)
+				foreach (int item in list)
 				{
-					if (item2 >= 0 && item2 < config.vmess.Count)
+					if (item >= 0 && item < config.vmess.Count)
 					{
-						speedtestNodeMap[item2] = config.vmess[item2];
-						SetHttpsDelay(item2, "");
+						speedtestNodeMap[item] = config.vmess[item];
+						SetHttpsDelay(item, "");
 					}
 				}
-				SpeedtestHandler httpsHandler = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, list, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateTlsRttHandler, UpdateHttpsDelayHandler, action, pid);
+				SpeedtestHandler httpsHandler = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, list, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateHttpsDelayHandler, action, pid);
 				if (config.ThreadNum == 0)
 				{
-					Thread thread2 = new Thread((ThreadStart)delegate
+					Thread thread = new Thread((ThreadStart)delegate
 					{
 						httpsHandler.RunRealPing(token);
 					});
-					thread2.Start();
-					thread2.Join();
+					thread.Start();
+					thread.Join();
 				}
 				else
 				{
-					Thread thread3 = new Thread((ThreadStart)delegate
+					Thread thread2 = new Thread((ThreadStart)delegate
 					{
 						httpsHandler.RunRealPing2(token);
 					});
-					thread3.Start();
-					thread3.Join();
+					thread2.Start();
+					thread2.Join();
 				}
 				RefreshServers();
 				Thread.Sleep(200);
@@ -1894,9 +1811,9 @@ public class MainForm : Form
 			if (num > 0)
 			{
 				AppendText(notify: false, $"移除无效服务器：共 {num} 个");
-				foreach (KeyValuePair<string, int> item3 in dictionary)
+				foreach (KeyValuePair<string, int> item2 in dictionary)
 				{
-					AppendText(notify: false, $"  - {item3.Key}：{item3.Value} 个");
+					AppendText(notify: false, $"  - {item2.Key}：{item2.Value} 个");
 				}
 				RefreshServers();
 				Thread.Sleep(200);
@@ -1911,9 +1828,9 @@ public class MainForm : Form
 			List<int> list2 = new List<int>();
 			if (cbRealPing.Checked && num > 0)
 			{
-				foreach (KeyValuePair<int, VmessItem> item4 in speedtestNodeMap)
+				foreach (KeyValuePair<int, VmessItem> item3 in speedtestNodeMap)
 				{
-					VmessItem value = item4.Value;
+					VmessItem value = item3.Value;
 					for (int num2 = 0; num2 < config.vmess.Count; num2++)
 					{
 						VmessItem vmessItem = config.vmess[num2];
@@ -1963,32 +1880,32 @@ public class MainForm : Form
 				return;
 			}
 			speedtestNodeMap.Clear();
-			foreach (int item5 in list2)
+			foreach (int item4 in list2)
 			{
-				if (item5 >= 0 && item5 < config.vmess.Count)
+				if (item4 >= 0 && item4 < config.vmess.Count)
 				{
-					speedtestNodeMap[item5] = config.vmess[item5];
-					SetTestResult(item5, "等待测速线程...");
+					speedtestNodeMap[item4] = config.vmess[item4];
+					SetTestResult(item4, "等待测速线程...");
 				}
 			}
-			SpeedtestHandler testSpeed = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, list2, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateTlsRttHandler, action, pid);
+			SpeedtestHandler testSpeed = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, list2, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, action, pid);
 			if (config.DownloadThreadNum == 0)
 			{
-				Thread thread4 = new Thread((ThreadStart)delegate
+				Thread thread3 = new Thread((ThreadStart)delegate
 				{
 					testSpeed.RunSpeedTest(token);
 				});
-				thread4.Start();
-				thread4.Join();
+				thread3.Start();
+				thread3.Join();
 			}
 			else
 			{
-				Thread thread5 = new Thread((ThreadStart)delegate
+				Thread thread4 = new Thread((ThreadStart)delegate
 				{
 					testSpeed.RunSpeedTest2(token);
 				});
-				thread5.Start();
-				thread5.Join();
+				thread4.Start();
+				thread4.Join();
 			}
 			RefreshServers();
 			if (!token.IsCancellationRequested)
@@ -2006,9 +1923,9 @@ public class MainForm : Form
 			if (num3 > 0)
 			{
 				AppendText(notify: false, $"移除低速服务器（阈值：{tbLowSpeed.Text.Trim()} MB/s）：共 {num3} 个");
-				foreach (KeyValuePair<string, int> item6 in dictionary2)
+				foreach (KeyValuePair<string, int> item5 in dictionary2)
 				{
-					AppendText(notify: false, $"  - {item6.Key}：{item6.Value} 个");
+					AppendText(notify: false, $"  - {item5.Key}：{item5.Value} 个");
 				}
 			}
 			else
@@ -2045,58 +1962,15 @@ public class MainForm : Form
 		}
 		if (cbRealPing.Checked)
 		{
-			foreach (ListViewItem item in lvServers.Items)
-			{
-				item.Selected = true;
-			}
-			if (GetLvSelectedIndex() >= 0)
-			{
-				AppendText(notify: false, "开始 TLS RTT 测试...");
-				config.index = 0;
-				try
-				{
-					createYamlConfig();
-				}
-				catch (Exception ex)
-				{
-					MessageBox.Show(ex.Message, "出现异常");
-					btnStartTest.Text = "一键自动测速";
-					return;
-				}
-				speedtestNodeMap.Clear();
-				foreach (int lvSelected in lvSelecteds)
-				{
-					if (lvSelected >= 0 && lvSelected < config.vmess.Count)
-					{
-						speedtestNodeMap[lvSelected] = config.vmess[lvSelected];
-					}
-				}
-				foreach (int lvSelected2 in lvSelecteds)
-				{
-					SetTlsRtt(lvSelected2, "");
-				}
-				SpeedtestHandler tlsRttHandler = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, lvSelecteds, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateTlsRttHandler, btStopTestStat, pid);
-				Thread thread = new Thread((ThreadStart)delegate
-				{
-					tlsRttHandler.RunTlsRtt(token);
-				});
-				thread.Start();
-				thread.Join();
-				RefreshServers();
-				Thread.Sleep(200);
-			}
-		}
-		if (cbRealPing.Checked)
-		{
 			do
 			{
 				if (token.IsCancellationRequested)
 				{
 					return;
 				}
-				foreach (ListViewItem item2 in lvServers.Items)
+				foreach (ListViewItem item in lvServers.Items)
 				{
-					item2.Selected = true;
+					item.Selected = true;
 				}
 				if (GetLvSelectedIndex() < 0)
 				{
@@ -2106,6 +1980,7 @@ public class MainForm : Form
 					});
 					return;
 				}
+				AppendText(notify: false, "开始 HTTPS 延迟测试...");
 				config.index = 0;
 				if (config.ThreadNum == 0)
 				{
@@ -2113,54 +1988,54 @@ public class MainForm : Form
 					{
 						createYamlConfig();
 					}
-					catch (Exception ex2)
+					catch (Exception ex)
 					{
-						MessageBox.Show(ex2.Message, "出现异常");
+						MessageBox.Show(ex.Message, "出现异常");
 						btnStartTest.Text = "一键自动测速";
 						return;
 					}
 					speedtestNodeMap.Clear();
-					foreach (int lvSelected3 in lvSelecteds)
+					foreach (int lvSelected in lvSelecteds)
 					{
-						if (lvSelected3 >= 0 && lvSelected3 < config.vmess.Count)
+						if (lvSelected >= 0 && lvSelected < config.vmess.Count)
 						{
-							speedtestNodeMap[lvSelected3] = config.vmess[lvSelected3];
+							speedtestNodeMap[lvSelected] = config.vmess[lvSelected];
 						}
 					}
 					Task.Run(delegate
 					{
-						foreach (int lvSelected4 in lvSelecteds)
+						foreach (int lvSelected2 in lvSelecteds)
 						{
-							SetHttpsDelay(lvSelected4, "");
+							SetHttpsDelay(lvSelected2, "");
 						}
 					}).Wait();
-					SpeedtestHandler statistics = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, lvSelecteds, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateTlsRttHandler, UpdateHttpsDelayHandler, btStopTestStat, pid);
+					SpeedtestHandler statistics = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, lvSelecteds, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateHttpsDelayHandler, btStopTestStat, pid);
 					if (config.ThreadNum == 0)
 					{
-						Thread thread2 = new Thread((ThreadStart)delegate
+						Thread thread = new Thread((ThreadStart)delegate
 						{
 							statistics.RunRealPing(token);
 						});
-						thread2.Start();
-						thread2.Join();
+						thread.Start();
+						thread.Join();
 					}
 					else
 					{
-						Thread thread3 = new Thread((ThreadStart)delegate
+						Thread thread2 = new Thread((ThreadStart)delegate
 						{
 							statistics.RunRealPing2(token);
 						});
-						thread3.Start();
-						thread3.Join();
+						thread2.Start();
+						thread2.Join();
 					}
 					Dictionary<string, int> dictionary = RemoveServer();
 					int num = dictionary.Values.Sum();
 					if (num > 0)
 					{
 						AppendText(notify: false, $"移除无效服务器：共 {num} 个");
-						foreach (KeyValuePair<string, int> item3 in dictionary)
+						foreach (KeyValuePair<string, int> item2 in dictionary)
 						{
-							AppendText(notify: false, $"  - {item3.Key}：{item3.Value} 个");
+							AppendText(notify: false, $"  - {item2.Key}：{item2.Value} 个");
 						}
 					}
 					else
@@ -2181,9 +2056,9 @@ public class MainForm : Form
 		}
 		if (cbSpeedTest.Checked && lvServers.Items.Count > 0)
 		{
-			foreach (ListViewItem item4 in lvServers.Items)
+			foreach (ListViewItem item3 in lvServers.Items)
 			{
-				item4.Selected = true;
+				item3.Selected = true;
 			}
 			if (GetLvSelectedIndex() < 0)
 			{
@@ -2210,57 +2085,57 @@ public class MainForm : Form
 				return;
 			}
 			speedtestNodeMap.Clear();
-			foreach (int lvSelected5 in lvSelecteds)
+			foreach (int lvSelected3 in lvSelecteds)
 			{
-				if (lvSelected5 >= 0 && lvSelected5 < config.vmess.Count)
+				if (lvSelected3 >= 0 && lvSelected3 < config.vmess.Count)
 				{
-					speedtestNodeMap[lvSelected5] = config.vmess[lvSelected5];
+					speedtestNodeMap[lvSelected3] = config.vmess[lvSelected3];
 				}
 			}
 			Task.Run(delegate
 			{
-				foreach (int lvSelected6 in lvSelecteds)
+				foreach (int lvSelected4 in lvSelecteds)
 				{
-					SetTestResult(lvSelected6, "等待测速线程...");
+					SetTestResult(lvSelected4, "等待测速线程...");
 				}
 			}).Wait();
-			SpeedtestHandler testSpeed = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, lvSelecteds, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateTlsRttHandler, btStopTestStat, pid);
+			SpeedtestHandler testSpeed = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, lvSelecteds, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, btStopTestStat, pid);
 			if (config.DownloadThreadNum == 0)
+			{
+				Thread thread3 = new Thread((ThreadStart)delegate
+				{
+					testSpeed.RunSpeedTest(token);
+				});
+				thread3.Start();
+				thread3.Join();
+			}
+			else
 			{
 				Thread thread4 = new Thread((ThreadStart)delegate
 				{
-					testSpeed.RunSpeedTest(token);
+					testSpeed.RunSpeedTest2(token);
 				});
 				thread4.Start();
 				thread4.Join();
 			}
-			else
-			{
-				Thread thread5 = new Thread((ThreadStart)delegate
-				{
-					testSpeed.RunSpeedTest2(token);
-				});
-				thread5.Start();
-				thread5.Join();
-			}
 			RefreshServers();
 			if (!token.IsCancellationRequested)
 			{
-				// 按 TLS RTT 列排序
-				int tlsRttColIndex = GetColumnIndexByName("TLS RTT");
-				if (tlsRttColIndex >= 0)
+				// 按 HTTPS延迟 列排序
+				int httpsDelayColIndex = GetColumnIndexByName("HTTPS延迟");
+				if (httpsDelayColIndex >= 0)
 				{
-					lvServers.Columns[tlsRttColIndex].Tag = true;
-					lvServers_ColumnClick(null, new ColumnClickEventArgs(tlsRttColIndex));
+					lvServers.Columns[httpsDelayColIndex].Tag = true;
+					lvServers_ColumnClick(null, new ColumnClickEventArgs(httpsDelayColIndex));
 				}
 				Dictionary<string, int> dictionary2 = RemoveServer();
 				int num2 = dictionary2.Values.Sum();
 				if (num2 > 0)
 				{
 					AppendText(notify: false, $"移除无效服务器：共 {num2} 个");
-					foreach (KeyValuePair<string, int> item5 in dictionary2)
+					foreach (KeyValuePair<string, int> item4 in dictionary2)
 					{
-						AppendText(notify: false, $"  - {item5.Key}：{item5.Value} 个");
+						AppendText(notify: false, $"  - {item4.Key}：{item4.Value} 个");
 					}
 				}
 				else
@@ -2274,9 +2149,9 @@ public class MainForm : Form
 				if (num3 > 0)
 				{
 					AppendText(notify: false, $"移除低速服务器（阈值：{tbLowSpeed.Text.Trim()} MB/s）：共 {num3} 个");
-					foreach (KeyValuePair<string, int> item6 in dictionary3)
+					foreach (KeyValuePair<string, int> item5 in dictionary3)
 					{
-						AppendText(notify: false, $"  - {item6.Key}：{item6.Value} 个");
+						AppendText(notify: false, $"  - {item5.Key}：{item5.Value} 个");
 					}
 				}
 				else
@@ -2400,31 +2275,11 @@ public class MainForm : Form
 		for (int num = lvServers.Items.Count - 1; num >= 0; num--)
 		{
 			string text = null;
-			string text2 = lvServers.Items[num].SubItems["tlsRtt"].Text;
-			bool flag = !string.IsNullOrEmpty(text2) && text2.IndexOf("ms") == -1 && text2 != "测速被取消" && text2 != "等待测速线程..." && text2 != "正在测试...";
 			string text3 = lvServers.Items[num].SubItems["httpsDelay"].Text;
 			bool flag2 = !string.IsNullOrEmpty(text3) && text3.IndexOf("ms") == -1 && text3 != "测速被取消" && text3 != "等待测速线程..." && text3 != "正在测速...";
-			if (config.strictExclusionMode)
+			if (flag2)
 			{
-				if (flag || flag2)
-				{
-					if (flag && flag2)
-					{
-						text = "TLS RTT 和 HTTPS延迟 测试均失败";
-					}
-					else if (flag)
-					{
-						text = "TLS RTT 测试失败";
-					}
-					else if (flag2)
-					{
-						text = "HTTPS延迟 测试失败";
-					}
-				}
-			}
-			else if (flag && flag2)
-			{
-				text = "TLS RTT 和 HTTPS延迟 测试均失败";
+				text = "HTTPS延迟 测试失败";
 			}
 			if (text == null)
 			{
@@ -3088,9 +2943,8 @@ public class MainForm : Form
 		{
 			0 => EServerColName.testResult, 
 			1 => EServerColName.MaxSpeed, 
-			2 => EServerColName.tlsRtt, 
-			3 => EServerColName.httpsDelay, 
-			4 => EServerColName.lastTestTime, 
+			2 => EServerColName.httpsDelay, 
+			3 => EServerColName.lastTestTime, 
 			_ => EServerColName.testResult, 
 		};
 		bool flag = cmbSortOrder.SelectedIndex == 1;
@@ -3114,9 +2968,8 @@ public class MainForm : Form
 		{
 			0 => "平均速度",
 			1 => "峰值速度",
-			2 => "TLS RTT",
-			3 => "HTTPS延迟",
-			4 => "最后测速",
+			2 => "HTTPS延迟",
+			3 => "最后测速",
 			_ => "平均速度",
 		};
 		return GetColumnIndexByName(columnText);
@@ -3316,7 +3169,6 @@ public class MainForm : Form
 		this.cmsLv = new System.Windows.Forms.ContextMenuStrip(this.components);
 		this.menuRealPingServer = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuDownLoadServer = new System.Windows.Forms.ToolStripMenuItem();
-		this.menuTlsRttServer = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuHttpsDelayServer = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuAutoTestSelected = new System.Windows.Forms.ToolStripMenuItem();
 		this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
@@ -3436,9 +3288,9 @@ public class MainForm : Form
 		this.lvServers.DoubleClick += new System.EventHandler(lvServers_DoubleClick);
 		this.lvServers.KeyDown += new System.Windows.Forms.KeyEventHandler(lvServers_KeyDown);
 		this.cmsLv.ImageScalingSize = new System.Drawing.Size(20, 20);
-		this.cmsLv.Items.AddRange(new System.Windows.Forms.ToolStripItem[23]
+		this.cmsLv.Items.AddRange(new System.Windows.Forms.ToolStripItem[22]
 		{
-			this.menuRealPingServer, this.menuDownLoadServer, this.menuTlsRttServer, this.menuHttpsDelayServer, this.menuAutoTestSelected, this.toolStripSeparator3, this.menuAddServers, this.toolStripSeparator4, this.menuSelectAll, this.menuEditServer,
+			this.menuRealPingServer, this.menuDownLoadServer, this.menuHttpsDelayServer, this.menuAutoTestSelected, this.toolStripSeparator3, this.menuAddServers, this.toolStripSeparator4, this.menuSelectAll, this.menuEditServer,
 			this.menuRemoveServer, this.menuRemoveDuplicateServer, this.menuRemoveLoseServer, this.menuRemoveLowServer, this.menuRemoveNoResultServer, this.toolStripSeparator5, this.menuExport2ShareUrl, this.menuExport2SubContent, this.toolStripSeparator6, this.menuExport2Base64,
 			this.menuExport2Clash, this.toolStripSeparator7, this.menuStartClash
 		});
@@ -3446,16 +3298,12 @@ public class MainForm : Form
 		this.cmsLv.Size = new System.Drawing.Size(285, 466);
 		this.menuRealPingServer.Name = "menuRealPingServer";
 		this.menuRealPingServer.Size = new System.Drawing.Size(284, 24);
-		this.menuRealPingServer.Text = "测试RTT+HTTPS延迟(Ctrl+R)";
+		this.menuRealPingServer.Text = "测试HTTPS延迟(Ctrl+R)";
 		this.menuRealPingServer.Click += new System.EventHandler(menuRealPingServer_Click);
 		this.menuDownLoadServer.Name = "menuDownLoadServer";
 		this.menuDownLoadServer.Size = new System.Drawing.Size(284, 24);
 		this.menuDownLoadServer.Text = "测试服务器下载速度(Ctrl+T)";
 		this.menuDownLoadServer.Click += new System.EventHandler(menuDownLoadServer_Click);
-		this.menuTlsRttServer.Name = "menuTlsRttServer";
-		this.menuTlsRttServer.Size = new System.Drawing.Size(284, 24);
-		this.menuTlsRttServer.Text = "测试TLS RTT(Ctrl+U)";
-		this.menuTlsRttServer.Click += new System.EventHandler(menuTlsRttServer_Click);
 		this.menuHttpsDelayServer.Name = "menuHttpsDelayServer";
 		this.menuHttpsDelayServer.Size = new System.Drawing.Size(284, 24);
 		this.menuHttpsDelayServer.Text = "测试HTTPS延迟(Ctrl+Y)";
@@ -3711,7 +3559,7 @@ public class MainForm : Form
 		this.tbTimeout.TextChanged += new System.EventHandler(tbTimeout_TextChanged);
 		this.cmbSortColumn.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
 		this.cmbSortColumn.FormattingEnabled = true;
-		this.cmbSortColumn.Items.AddRange(new object[4] { "平均速度", "峰值速度", "TLS RTT", "HTTPS延迟" });
+		this.cmbSortColumn.Items.AddRange(new object[4] { "平均速度", "峰值速度", "HTTPS延迟", "最后测速" });
 		this.cmbSortColumn.Location = new System.Drawing.Point(1266, 32);
 		this.cmbSortColumn.Margin = new System.Windows.Forms.Padding(4);
 		this.cmbSortColumn.Name = "cmbSortColumn";
@@ -3794,7 +3642,7 @@ public class MainForm : Form
 		this.cbStrictMode.Size = new System.Drawing.Size(119, 19);
 		this.cbStrictMode.TabIndex = 16;
 		this.cbStrictMode.Text = "严格排除模式";
-		this.toolTipKeywordFilter.SetToolTip(this.cbStrictMode, "启用后，TLS RTT 或 HTTPS延迟 任意一项测速失败即删除节点\r\n禁用时，只有 TLS RTT 和 HTTPS延迟 同时失败才删除节点");
+		this.toolTipKeywordFilter.SetToolTip(this.cbStrictMode, "启用后，HTTPS延迟测速失败即删除节点");
 		this.cbStrictMode.UseVisualStyleBackColor = true;
 		this.cbStrictMode.CheckedChanged += new System.EventHandler(cbStrictMode_CheckedChanged);
 		this.label8.AutoSize = true;
