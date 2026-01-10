@@ -6,7 +6,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![.NET Framework](https://img.shields.io/badge/.NET_Framework-4.8-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![Release](https://img.shields.io/badge/release-v3.8-FF6B35?style=for-the-badge&logo=github&logoColor=white)](../../releases)
+[![Release](https://img.shields.io/badge/release-v3.9-FF6B35?style=for-the-badge&logo=github&logoColor=white)](../../releases)
 [![License](https://img.shields.io/badge/license-MIT-00C853?style=for-the-badge)](LICENSE)
 
 **🎯 基于 [不良林 nodesCatch V2.0](https://bulianglin.com/archives/nodescatch.html) 二次开发的代理节点管理和测速工具**
@@ -25,16 +25,16 @@
 
 <br>
 
-## 🎉 v3.8 新版本亮点
+## 🎉 v3.9 新版本亮点
 
 <div align="center">
 
-| 🆕 新增功能 | 📝 描述 |
+| 🆕 新功能 | 📝 描述 |
 |:---:|:---|
-| 📄 **原生 YAML 解析** | 无需 subconverter 即可直接导入 Clash/Mihomo YAML 配置文件 |
-| 🔐 **完整协议支持** | 支持 VLESS Reality、Hysteria2、VMess、Trojan、SS 等协议的 YAML 导入 |
-| 🛠️ **智能错误提示** | 根据错误代码提供具体解决建议，自动检测系统架构 |
-| 📦 **开箱即用** | 减少对外部组件的依赖，提升用户体验 |
+| 🎛️ **列自定义** | 支持自定义列的显示/隐藏和排列顺序 |
+| 🧹 **简化测速** | 移除 TLS RTT 测速，统一使用 HTTPS 延迟测速 |
+| 🔧 **稳定性提升** | 修复测速过程中"切换节点失败"的问题 |
+| 🛡️ **线程安全** | 修复测速时 UI 更新的线程安全问题 |
 
 </div>
 
@@ -165,7 +165,7 @@
 
 ### 📥 下载安装
 
-[![Download](https://img.shields.io/badge/下载最新版-v3.8-FF6B35?style=for-the-badge&logo=github)](https://github.com/AHackerX/nodesCatchNext/releases)
+[![Download](https://img.shields.io/badge/下载最新版-v3.9-FF6B35?style=for-the-badge&logo=github)](https://github.com/AHackerX/nodesCatchNext/releases)
 
 </div>
 
@@ -420,14 +420,25 @@
 ## 🔄 更新日志
 
 <details open>
-<summary><b>🏷️ v3.8 (最新版本)</b></summary>
+<summary><b>🏷️ v3.9 (最新版本)</b></summary>
+
+- 🎛️ 新增列自定义功能，支持显示/隐藏和调整列顺序
+- 🧹 移除 TLS RTT 测速，简化为 HTTPS 延迟测速
+- 🔧 修复测速过程中"切换节点失败"的问题
+- 🛡️ 修复测速时 UI 更新的线程安全问题
+- 🗑️ 优化节点自动删除逻辑，正确识别"请求被中止"等错误状态
+- 📄 修复部分 YAML 文件无法导入的问题
+
+</details>
+
+<details>
+<summary><b>🏷️ v3.8</b></summary>
 
 - ✨ 新增原生 Clash YAML 配置解析功能，无需依赖 subconverter 即可直接导入
 - 🔐 支持 VLESS（包括 Reality）、VMess、Shadowsocks、Trojan、Hysteria2 等协议的 YAML 导入
 - 🛠️ Mihomo 内核启动失败时，根据错误代码提供具体的解决建议
 - 🔍 自动检测系统架构，提示下载对应版本（amd64/386）
 - 📝 改进错误提示信息，明确告知用户缺少哪些文件或配置
-- 🐛 修复反编译残留代码导致的编译错误
 
 </details>
 
