@@ -166,12 +166,6 @@ internal class ConfigHandler
 		ConfigHandler.ProcessEvent?.Invoke(b, msg);
 	}
 
-	public static int RemoveServerViaSubid(ref Config config, string subid)
-	{
-		ToJsonFile(config);
-		return 0;
-	}
-
 	public static int AddformMainLvColWidth(ref Config config, string name, int width)
 	{
 		if (config.uiItem.mainLvColWidth == null)

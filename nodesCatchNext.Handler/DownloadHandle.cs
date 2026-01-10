@@ -235,5 +235,9 @@ internal class DownloadHandle
 		{
 			this.Error?.Invoke(this, new ErrorEventArgs(exception));
 		}
+		finally
+		{
+			(sender as WebClient)?.Dispose();
+		}
 	}
 }

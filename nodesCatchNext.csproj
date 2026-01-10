@@ -12,7 +12,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <RootNamespace />
+    <RootNamespace>nodesCatchNext</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="nodesCatchNext.Sample.SampleClientConfig.txt" />
