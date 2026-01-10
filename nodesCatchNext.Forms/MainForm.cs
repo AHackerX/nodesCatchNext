@@ -98,8 +98,6 @@ public class MainForm : Form
 
 	private ToolStripMenuItem menuDownLoadServer;
 
-	private ToolStripMenuItem menuHttpsDelayServer;
-
 	private ToolStripMenuItem menuAutoTestSelected;
 
 	private ToolStripSeparator toolStripSeparator3;
@@ -855,11 +853,7 @@ public class MainForm : Form
 		Speedtest("speedtest");
 	}
 
-	private void menuHttpsDelayServer_Click(object sender, EventArgs e)
-	{
-		btStopTest.Enabled = true;
-		Speedtest("httpsdelay");
-	}
+
 
 	private void menuAutoTestSelected_Click(object sender, EventArgs e)
 	{
@@ -1527,9 +1521,6 @@ public class MainForm : Form
 				break;
 			case Keys.R:
 				menuRealPingServer_Click(null, null);
-				break;
-			case Keys.Y:
-				menuHttpsDelayServer_Click(null, null);
 				break;
 			case Keys.E:
 				menuAutoTestSelected_Click(null, null);
@@ -3169,7 +3160,6 @@ public class MainForm : Form
 		this.cmsLv = new System.Windows.Forms.ContextMenuStrip(this.components);
 		this.menuRealPingServer = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuDownLoadServer = new System.Windows.Forms.ToolStripMenuItem();
-		this.menuHttpsDelayServer = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuAutoTestSelected = new System.Windows.Forms.ToolStripMenuItem();
 		this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
 		this.menuAddServers = new System.Windows.Forms.ToolStripMenuItem();
@@ -3288,9 +3278,9 @@ public class MainForm : Form
 		this.lvServers.DoubleClick += new System.EventHandler(lvServers_DoubleClick);
 		this.lvServers.KeyDown += new System.Windows.Forms.KeyEventHandler(lvServers_KeyDown);
 		this.cmsLv.ImageScalingSize = new System.Drawing.Size(20, 20);
-		this.cmsLv.Items.AddRange(new System.Windows.Forms.ToolStripItem[22]
+		this.cmsLv.Items.AddRange(new System.Windows.Forms.ToolStripItem[21]
 		{
-			this.menuRealPingServer, this.menuDownLoadServer, this.menuHttpsDelayServer, this.menuAutoTestSelected, this.toolStripSeparator3, this.menuAddServers, this.toolStripSeparator4, this.menuSelectAll, this.menuEditServer,
+			this.menuRealPingServer, this.menuDownLoadServer, this.menuAutoTestSelected, this.toolStripSeparator3, this.menuAddServers, this.toolStripSeparator4, this.menuSelectAll, this.menuEditServer,
 			this.menuRemoveServer, this.menuRemoveDuplicateServer, this.menuRemoveLoseServer, this.menuRemoveLowServer, this.menuRemoveNoResultServer, this.toolStripSeparator5, this.menuExport2ShareUrl, this.menuExport2SubContent, this.toolStripSeparator6, this.menuExport2Base64,
 			this.menuExport2Clash, this.toolStripSeparator7, this.menuStartClash
 		});
@@ -3304,10 +3294,6 @@ public class MainForm : Form
 		this.menuDownLoadServer.Size = new System.Drawing.Size(284, 24);
 		this.menuDownLoadServer.Text = "测试服务器下载速度(Ctrl+T)";
 		this.menuDownLoadServer.Click += new System.EventHandler(menuDownLoadServer_Click);
-		this.menuHttpsDelayServer.Name = "menuHttpsDelayServer";
-		this.menuHttpsDelayServer.Size = new System.Drawing.Size(284, 24);
-		this.menuHttpsDelayServer.Text = "测试HTTPS延迟(Ctrl+Y)";
-		this.menuHttpsDelayServer.Click += new System.EventHandler(menuHttpsDelayServer_Click);
 		this.menuAutoTestSelected.Name = "menuAutoTestSelected";
 		this.menuAutoTestSelected.Size = new System.Drawing.Size(284, 24);
 		this.menuAutoTestSelected.Text = "选中节点一键测速(Ctrl+E)";
