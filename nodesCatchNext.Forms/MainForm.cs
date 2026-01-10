@@ -2267,19 +2267,47 @@ public class MainForm : Form
 		{
 			string text = null;
 			string text3 = lvServers.Items[num].SubItems["httpsDelay"].Text;
-			bool flag2 = !string.IsNullOrEmpty(text3) && text3.IndexOf("ms") == -1 && text3 != "测速被取消" && text3 != "等待测速线程..." && text3 != "正在测速...";
-			if (flag2)
+			string text4 = lvServers.Items[num].SubItems["testResult"].Text;
+			
+			// 检查是否为等待/测试中状态
+			bool httpsDelayPending = string.IsNullOrEmpty(text3) || text3 == "测速被取消" || text3 == "等待测速线程..." || text3 == "正在测速...";
+			bool testResultPending = string.IsNullOrEmpty(text4) || text4 == "等待测速线程..." || text4 == "测速被取消" || text4 == "正在测试...";
+			
+			// 检查测试是否失败
+			bool httpsDelayFailed = !httpsDelayPending && text3.IndexOf("ms") == -1;
+			bool testResultFailed = !testResultPending && text4.IndexOf("MB/s") == -1 && text4.IndexOf("KB/s") == -1;
+			
+			if (config.strictExclusionMode)
 			{
-				text = "HTTPS延迟 测试失败";
-			}
-			if (text == null)
-			{
-				string text4 = lvServers.Items[num].SubItems["testResult"].Text;
-				if (!string.IsNullOrEmpty(text4) && text4.IndexOf("MB/s") == -1 && text4.IndexOf("KB/s") == -1 && text4 != "等待测速线程..." && text4 != "测速被取消" && text4 != "正在测试...")
+				// 严格模式：HTTPS延迟失败 或 下载测速失败，满足一个就删除
+				if (httpsDelayFailed)
+				{
+					text = "HTTPS延迟 测试失败";
+				}
+				else if (testResultFailed)
 				{
 					text = ((!text4.Contains("超时") && !text4.Contains("Timeout")) ? ((!text4.Contains("连接失败") && !text4.Contains("无法连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
 				}
 			}
+			else
+			{
+				// 非严格模式：HTTPS延迟失败 且 下载测速也失败才删除
+				if (httpsDelayFailed && testResultFailed)
+				{
+					text = "HTTPS延迟和平均速度 均测试失败";
+				}
+				else if (httpsDelayFailed && testResultPending)
+				{
+					// HTTPS失败但下载测速未进行，视为失败
+					text = "HTTPS延迟 测试失败";
+				}
+				else if (httpsDelayPending && testResultFailed)
+				{
+					// HTTPS未测试但下载测速失败，视为失败
+					text = ((!text4.Contains("超时") && !text4.Contains("Timeout")) ? ((!text4.Contains("连接失败") && !text4.Contains("无法连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
+				}
+			}
+			
 			if (text != null)
 			{
 				if (lvServers.Items[num].Tag != null)
