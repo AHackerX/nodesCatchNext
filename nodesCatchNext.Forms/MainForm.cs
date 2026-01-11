@@ -242,6 +242,9 @@ public class MainForm : Form
 
 	private ToolTip toolTipKeywordFilter;
 
+	// 列头右键菜单
+	private ContextMenuStrip cmsColumnHeader;
+
 	private const int SubconverterPort = 25500;
 
 	public static MainForm Instance { get; private set; }
@@ -258,6 +261,7 @@ public class MainForm : Form
 		InitializeComponent();
 		InitializeKeywordPresetMenu();
 		InitializeSubscriptionTabControl();
+		InitializeColumnHeaderMenu();
 		Global.processJob = new Job();
 		Application.ApplicationExit += delegate
 		{
@@ -292,6 +296,196 @@ public class MainForm : Form
 		});
 	}
 
+	// 列头 NativeWindow 实例，用于重新绑定
+	private ColumnHeaderNativeWindow columnHeaderNativeWindow;
+
+	private void InitializeColumnHeaderMenu()
+	{
+		cmsColumnHeader = new ContextMenuStrip();
+		// 绑定会在 InitServersView 末尾调用 AttachColumnHeaderMenu 完成
+	}
+
+	private void AttachColumnHeaderMenu()
+	{
+		// 释放旧的 NativeWindow
+		if (columnHeaderNativeWindow != null)
+		{
+			columnHeaderNativeWindow.ReleaseHandle();
+			columnHeaderNativeWindow = null;
+		}
+		
+		// 获取列头控件句柄并设置右键菜单
+		IntPtr headerHandle = SendMessage(lvServers.Handle, LVM_GETHEADER, IntPtr.Zero, IntPtr.Zero);
+		if (headerHandle != IntPtr.Zero)
+		{
+			columnHeaderNativeWindow = new ColumnHeaderNativeWindow(this, cmsColumnHeader);
+			columnHeaderNativeWindow.AssignHandle(headerHandle);
+		}
+	}
+
+	// 内部类：用于拦截列头窗口消息
+	private class ColumnHeaderNativeWindow : NativeWindow
+	{
+		private const int WM_CONTEXTMENU = 0x007B;
+		private readonly MainForm _mainForm;
+		private readonly ContextMenuStrip _columnMenu;
+
+		public ColumnHeaderNativeWindow(MainForm mainForm, ContextMenuStrip columnMenu)
+		{
+			_mainForm = mainForm;
+			_columnMenu = columnMenu;
+		}
+
+		protected override void WndProc(ref Message m)
+		{
+			if (m.Msg == WM_CONTEXTMENU)
+			{
+				// 在列头上右键，显示列头菜单
+				int x = (int)(m.LParam.ToInt64() & 0xFFFF);
+				int y = (int)((m.LParam.ToInt64() >> 16) & 0xFFFF);
+				
+				// 直接构建并显示菜单
+				_mainForm.BuildColumnHeaderMenu();
+				_columnMenu.Show(x, y);
+				return; // 阻止默认处理
+			}
+			base.WndProc(ref m);
+		}
+	}
+
+	private void BuildColumnHeaderMenu()
+	{
+		cmsColumnHeader.Items.Clear();
+		
+		// 添加"将列调整为合适的大小"选项
+		var menuAutoFitColumn = new ToolStripMenuItem("将列调整为合适的大小");
+		menuAutoFitColumn.Click += (s, args) => AutoFitAllColumns();
+		cmsColumnHeader.Items.Add(menuAutoFitColumn);
+		
+		cmsColumnHeader.Items.Add(new ToolStripSeparator());
+		
+		// 按当前列顺序添加所有列选项
+		foreach (var colDef in columnDefinitions)
+		{
+			var menuItem = new ToolStripMenuItem(colDef.displayName);
+			menuItem.Tag = colDef.key;
+			menuItem.Checked = IsColumnVisible(colDef.key);
+			menuItem.Click += ColumnHeaderMenuItem_Click;
+			cmsColumnHeader.Items.Add(menuItem);
+		}
+		
+		// 添加"最后测速"列（如果启用了记录测速时间）
+		if (config.recordTestTime)
+		{
+			var menuLastTestTime = new ToolStripMenuItem("最后测速");
+			menuLastTestTime.Tag = "lastTestTime";
+			menuLastTestTime.Checked = IsColumnVisible("lastTestTime");
+			menuLastTestTime.Click += ColumnHeaderMenuItem_Click;
+			cmsColumnHeader.Items.Add(menuLastTestTime);
+		}
+	}
+
+	private void ColumnHeaderMenuItem_Click(object sender, EventArgs e)
+	{
+		if (sender is ToolStripMenuItem menuItem && menuItem.Tag is string columnKey)
+		{
+			// 切换列的可见性
+			bool newVisible = !IsColumnVisible(columnKey);
+			SetColumnVisible(columnKey, newVisible);
+			
+			// 保存配置并刷新列表
+			SaveColumnVisibility();
+			RebuildColumns();
+		}
+	}
+
+	private void SetColumnVisible(string columnKey, bool visible)
+	{
+		if (config.uiItem.mainLvColVisible == null)
+		{
+			config.uiItem.mainLvColVisible = new Dictionary<string, bool>();
+		}
+		config.uiItem.mainLvColVisible[columnKey] = visible;
+	}
+
+	private void SaveColumnVisibility()
+	{
+		// 保存到配置（UI配置会在窗口关闭时自动保存）
+		ConfigHandler.SaveUIConfigOnly(config);
+	}
+
+	private void RebuildColumns()
+	{
+		// 保存当前选中项
+		var selectedIndices = new List<int>();
+		foreach (int idx in lvServers.SelectedIndices)
+		{
+			if (lvServers.Items[idx].Tag is int vmessIdx)
+				selectedIndices.Add(vmessIdx);
+		}
+		
+		// 重建列
+		lvServers.BeginUpdate();
+		lvServers.Columns.Clear();
+		lvServers.Items.Clear();
+		
+		// 获取列顺序
+		currentColumnOrder = GetColumnOrder();
+		
+		// 按顺序添加列
+		foreach (var key in currentColumnOrder)
+		{
+			var colDef = columnDefinitions.FirstOrDefault(c => c.key == key);
+			if (colDef.key != null)
+			{
+				var col = lvServers.Columns.Add(colDef.displayName, GetVisibleColumnWidth(key, colDef.defaultWidth), HorizontalAlignment.Center);
+				col.Tag = key;
+			}
+		}
+		
+		if (config.recordTestTime)
+		{
+			var col = lvServers.Columns.Add("最后测速", GetColumnWidth("lastTestTime", 130), HorizontalAlignment.Center);
+			col.Tag = "lastTestTime";
+		}
+		
+		EnsureColumnHeaderMinWidths();
+		lvServers.EndUpdate();
+		
+		// 刷新数据
+		RefreshServersView();
+		
+		// 恢复选中项
+		foreach (ListViewItem item in lvServers.Items)
+		{
+			if (item.Tag is int vmessIdx && selectedIndices.Contains(vmessIdx))
+			{
+				item.Selected = true;
+			}
+		}
+		
+		// 重新绑定列头右键菜单
+		AttachColumnHeaderMenu();
+	}
+
+	private void AutoFitAllColumns()
+	{
+		lvServers.BeginUpdate();
+		for (int i = 0; i < lvServers.Columns.Count; i++)
+		{
+			// 跳过隐藏列
+			if (lvServers.Columns[i].Width == 0)
+				continue;
+			
+			int autoWidth = CalculateAutoColumnWidth(i);
+			if (autoWidth > 0)
+			{
+				lvServers.Columns[i].Width = autoWidth;
+			}
+		}
+		lvServers.EndUpdate();
+	}
+
 	// 列定义：key, 显示名称, 默认宽度
 	private readonly List<(string key, string displayName, int defaultWidth)> columnDefinitions = new List<(string, string, int)>
 	{
@@ -322,6 +516,7 @@ public class MainForm : Form
 		lvServers.Scrollable = true;
 		lvServers.MultiSelect = true;
 		lvServers.HeaderStyle = ColumnHeaderStyle.Clickable;
+		lvServers.AllowColumnReorder = true;
 		
 		// 获取列顺序
 		currentColumnOrder = GetColumnOrder();
@@ -332,16 +527,69 @@ public class MainForm : Form
 			var colDef = columnDefinitions.FirstOrDefault(c => c.key == key);
 			if (colDef.key != null)
 			{
-				lvServers.Columns.Add(colDef.displayName, GetVisibleColumnWidth(key, colDef.defaultWidth), HorizontalAlignment.Center);
+				var col = lvServers.Columns.Add(colDef.displayName, GetVisibleColumnWidth(key, colDef.defaultWidth), HorizontalAlignment.Center);
+				col.Tag = key; // 保存列的 key 用于后续识别
 			}
 		}
 		
 		if (config.recordTestTime)
 		{
-			lvServers.Columns.Add("最后测速", GetColumnWidth("lastTestTime", 130), HorizontalAlignment.Center);
+			var col = lvServers.Columns.Add("最后测速", GetColumnWidth("lastTestTime", 130), HorizontalAlignment.Center);
+			col.Tag = "lastTestTime";
 		}
 		EnsureColumnHeaderMinWidths();
 		lvServers.EndUpdate();
+		
+		// 绑定列顺序改变事件
+		lvServers.ColumnReordered -= LvServers_ColumnReordered;
+		lvServers.ColumnReordered += LvServers_ColumnReordered;
+		
+		// 绑定列头右键菜单
+		AttachColumnHeaderMenu();
+	}
+
+	private void LvServers_ColumnReordered(object sender, ColumnReorderedEventArgs e)
+	{
+		// 延迟执行，等待列顺序实际更新完成
+		BeginInvoke(new Action(() =>
+		{
+			SaveColumnOrder();
+		}));
+	}
+
+	private void SaveColumnOrder()
+	{
+		if (config.uiItem.mainLvColOrder == null)
+		{
+			config.uiItem.mainLvColOrder = new List<string>();
+		}
+		
+		config.uiItem.mainLvColOrder.Clear();
+		
+		// 按显示顺序保存列
+		var displayOrder = new List<(int displayIndex, string key)>();
+		for (int i = 0; i < lvServers.Columns.Count; i++)
+		{
+			var col = lvServers.Columns[i];
+			if (col.Tag is string key)
+			{
+				displayOrder.Add((col.DisplayIndex, key));
+			}
+		}
+		
+		// 按 DisplayIndex 排序
+		displayOrder.Sort((a, b) => a.displayIndex.CompareTo(b.displayIndex));
+		
+		foreach (var item in displayOrder)
+		{
+			config.uiItem.mainLvColOrder.Add(item.key);
+		}
+		
+		// 更新当前列顺序
+		currentColumnOrder = config.uiItem.mainLvColOrder.ToList();
+		
+		// 保存配置
+		ConfigHandler.SaveUIConfigOnly(config);
 	}
 
 	private List<string> GetColumnOrder()
@@ -565,9 +813,31 @@ public class MainForm : Form
 		{
 			return 0;
 		}
+		
+		// 获取列的 key
+		string columnKey = lvServers.Columns[columnIndex].Tag as string;
+		
 		foreach (ListViewItem item in lvServers.Items)
 		{
-			int num2 = TextRenderer.MeasureText(((columnIndex == 0) ? item.Text : ((columnIndex < item.SubItems.Count) ? item.SubItems[columnIndex].Text : string.Empty)) ?? string.Empty, lvServers.Font).Width + 20;
+			string text;
+			if (columnIndex == 0)
+			{
+				text = item.Text;
+			}
+			else if (!string.IsNullOrEmpty(columnKey) && item.SubItems.ContainsKey(columnKey))
+			{
+				text = item.SubItems[columnKey].Text;
+			}
+			else if (columnIndex < item.SubItems.Count)
+			{
+				text = item.SubItems[columnIndex].Text;
+			}
+			else
+			{
+				text = string.Empty;
+			}
+			
+			int num2 = TextRenderer.MeasureText(text ?? string.Empty, lvServers.Font).Width + 20;
 			if (num2 > num)
 			{
 				num = num2;
@@ -3199,9 +3469,26 @@ public class MainForm : Form
 
 	protected override void Dispose(bool disposing)
 	{
-		if (disposing && components != null)
+		if (disposing)
 		{
-			components.Dispose();
+			// 释放列头 NativeWindow
+			if (columnHeaderNativeWindow != null)
+			{
+				columnHeaderNativeWindow.ReleaseHandle();
+				columnHeaderNativeWindow = null;
+			}
+			
+			// 释放列头右键菜单
+			if (cmsColumnHeader != null)
+			{
+				cmsColumnHeader.Dispose();
+				cmsColumnHeader = null;
+			}
+			
+			if (components != null)
+			{
+				components.Dispose();
+			}
 		}
 		base.Dispose(disposing);
 	}
