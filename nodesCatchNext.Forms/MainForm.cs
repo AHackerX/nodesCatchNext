@@ -443,9 +443,9 @@ public class MainForm : Form
 			}
 		}
 		
-		if (config.recordTestTime)
+		if (config.recordTestTime && IsColumnVisible("lastTestTime"))
 		{
-			var col = lvServers.Columns.Add("最后测速", GetColumnWidth("lastTestTime", 130), HorizontalAlignment.Center);
+			var col = lvServers.Columns.Add("最后测速", GetVisibleColumnWidth("lastTestTime", 130), HorizontalAlignment.Center);
 			col.Tag = "lastTestTime";
 		}
 		
@@ -532,9 +532,9 @@ public class MainForm : Form
 			}
 		}
 		
-		if (config.recordTestTime)
+		if (config.recordTestTime && IsColumnVisible("lastTestTime"))
 		{
-			var col = lvServers.Columns.Add("最后测速", GetColumnWidth("lastTestTime", 130), HorizontalAlignment.Center);
+			var col = lvServers.Columns.Add("最后测速", GetVisibleColumnWidth("lastTestTime", 130), HorizontalAlignment.Center);
 			col.Tag = "lastTestTime";
 		}
 		EnsureColumnHeaderMinWidths();
@@ -739,7 +739,7 @@ public class MainForm : Form
 					Utils.AddSubItem(listViewItem, key, GetColumnValue(vmessItem, key, num));
 				}
 				
-				if (config.recordTestTime)
+				if (config.recordTestTime && IsColumnVisible("lastTestTime"))
 				{
 					Utils.AddSubItem(listViewItem, EServerColName.lastTestTime.ToString(), vmessItem.lastTestTime);
 				}
@@ -1230,7 +1230,8 @@ public class MainForm : Form
 		{
 			if (item.Tag != null && (int)item.Tag == k)
 			{
-				item.SubItems["MaxSpeed"].Text = txt;
+				if (item.SubItems.ContainsKey("MaxSpeed"))
+					item.SubItems["MaxSpeed"].Text = txt;
 				break;
 			}
 		}
@@ -1247,7 +1248,8 @@ public class MainForm : Form
 		{
 			if (item.Tag != null && (int)item.Tag == k)
 			{
-				item.SubItems["testResult"].Text = txt;
+				if (item.SubItems.ContainsKey("testResult"))
+					item.SubItems["testResult"].Text = txt;
 				break;
 			}
 		}
@@ -1288,7 +1290,8 @@ public class MainForm : Form
 		{
 			if (item.Tag != null && (int)item.Tag == k)
 			{
-				item.SubItems["httpsDelay"].Text = txt;
+				if (item.SubItems.ContainsKey("httpsDelay"))
+					item.SubItems["httpsDelay"].Text = txt;
 				break;
 			}
 		}
@@ -1936,9 +1939,12 @@ public class MainForm : Form
 					num++;
 				}
 			}
-			item.SubItems["httpsDelay"].Text = "";
-			item.SubItems["testResult"].Text = "";
-			item.SubItems["MaxSpeed"].Text = "";
+			if (item.SubItems.ContainsKey("httpsDelay"))
+				item.SubItems["httpsDelay"].Text = "";
+			if (item.SubItems.ContainsKey("testResult"))
+				item.SubItems["testResult"].Text = "";
+			if (item.SubItems.ContainsKey("MaxSpeed"))
+				item.SubItems["MaxSpeed"].Text = "";
 			if (config.recordTestTime && item.SubItems.ContainsKey("lastTestTime"))
 			{
 				item.SubItems["lastTestTime"].Text = "";
@@ -2480,6 +2486,8 @@ public class MainForm : Form
 		List<int> list = new List<int>();
 		for (int num = lvServers.Items.Count - 1; num >= 0; num--)
 		{
+			if (!lvServers.Items[num].SubItems.ContainsKey("testResult"))
+				continue;
 			string text = lvServers.Items[num].SubItems["testResult"].Text;
 			if (text.IndexOf("MB/s") != -1)
 			{
@@ -2554,8 +2562,8 @@ public class MainForm : Form
 		for (int num = lvServers.Items.Count - 1; num >= 0; num--)
 		{
 			string text = null;
-			string text3 = lvServers.Items[num].SubItems["httpsDelay"].Text;
-			string text4 = lvServers.Items[num].SubItems["testResult"].Text;
+			string text3 = lvServers.Items[num].SubItems.ContainsKey("httpsDelay") ? lvServers.Items[num].SubItems["httpsDelay"].Text : "";
+			string text4 = lvServers.Items[num].SubItems.ContainsKey("testResult") ? lvServers.Items[num].SubItems["testResult"].Text : "";
 			
 			// 检查是否为等待/测试中状态
 			bool httpsDelayPending = string.IsNullOrEmpty(text3) || text3 == "测速被取消" || text3 == "等待测速线程..." || text3 == "正在测速...";
@@ -3292,7 +3300,7 @@ public class MainForm : Form
 
 	private double GetSortValue(ListViewItem item, int columnIndex)
 	{
-		if (item.SubItems.Count <= columnIndex)
+		if (columnIndex < 0 || item.SubItems.Count <= columnIndex)
 		{
 			return double.MaxValue;
 		}
@@ -3414,11 +3422,12 @@ public class MainForm : Form
 			}
 		}
 		
-		if (config.recordTestTime)
+		if (config.recordTestTime && IsColumnVisible("lastTestTime"))
 		{
 			if (!hasLastTestTimeColumn)
 			{
-				lvServers.Columns.Add("最后测速", GetColumnWidth("lastTestTime", 130), HorizontalAlignment.Center);
+				var col = lvServers.Columns.Add("最后测速", GetVisibleColumnWidth("lastTestTime", 130), HorizontalAlignment.Center);
+				col.Tag = "lastTestTime";
 				RefreshServers();
 			}
 			if (!cmbSortColumn.Items.Contains("最后测速"))
