@@ -741,6 +741,8 @@ internal class ShareHandler
 		{
 			return null;
 		}
+		// 使用 Split 限制为 2 部分，支持 SS2022 格式（密码中可能包含冒号）
+		// SS2022 格式: method:iPSK:uPSK 或 method:base64password
 		string[] array = text2.Split(new char[1] { ':' }, 2);
 		if (array.Length != 2)
 		{
