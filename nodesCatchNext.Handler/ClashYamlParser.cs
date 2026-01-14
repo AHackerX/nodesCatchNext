@@ -71,6 +71,7 @@ public static class ClashYamlParser
         var lines = proxiesSection.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
         var currentBlock = new List<string>();
         bool inProxy = false;
+        bool pendingNewBlock = false; // 标记是否遇到了单独的 "-"
 
         foreach (var line in lines)
         {
@@ -84,8 +85,30 @@ public static class ClashYamlParser
                 if (!string.IsNullOrEmpty(jsonBlock))
                 {
                     blocks.Add(jsonBlock);
+                    pendingNewBlock = false;
                     continue;
                 }
+            }
+            
+            // 检测单独的 "-" 行（表示新代理块开始，但 name 在下一行）
+            if (trimmed == "-")
+            {
+                if (inProxy && currentBlock.Count > 0)
+                {
+                    blocks.Add(string.Join("\n", currentBlock));
+                }
+                currentBlock.Clear();
+                pendingNewBlock = true;
+                inProxy = true;
+                continue;
+            }
+            
+            // 如果上一行是单独的 "-"，这一行应该是 name: 开头
+            if (pendingNewBlock && trimmed.StartsWith("name:"))
+            {
+                currentBlock.Add("- " + line.TrimStart()); // 合并成 "- name: xxx" 格式
+                pendingNewBlock = false;
+                continue;
             }
             
             // 检测多行格式新代理块开始
@@ -98,10 +121,12 @@ public static class ClashYamlParser
                 currentBlock.Clear();
                 currentBlock.Add(line);
                 inProxy = true;
+                pendingNewBlock = false;
             }
             else if (inProxy)
             {
                 currentBlock.Add(line);
+                pendingNewBlock = false;
             }
         }
 
