@@ -64,8 +64,6 @@ public class MainForm : Form
 
 	private const int HDI_FORMAT = 4;
 
-	private int currentSortColumn = -1;
-
 	private bool currentSortAscending = true;
 
 	public static Config config;
@@ -718,31 +716,28 @@ public class MainForm : Form
 		lvServers.Items.Clear();
 		int num = 0;
 		
-		// 确保有列顺序
-		if (currentColumnOrder == null)
-		{
-			currentColumnOrder = GetColumnOrder();
-		}
-		
 		for (int i = 0; i < config.vmess.Count; i++)
 		{
 			VmessItem vmessItem = config.vmess[i];
 			if ((currentSubFilter == null || (currentSubFilter == "__unassigned__" && string.IsNullOrEmpty(vmessItem.subid)) || (currentSubFilter != "__unassigned__" && vmessItem.subid == currentSubFilter)) && MatchesKeywordFilter(vmessItem.remarks))
 			{
 				num++;
-				ListViewItem listViewItem = new ListViewItem(GetColumnValue(vmessItem, currentColumnOrder[0], num));
 				
-				// 按列顺序添加 SubItems（跳过第一列，因为已经是 ListViewItem 的 Text）
-				for (int j = 1; j < currentColumnOrder.Count; j++)
+				// 按照列的物理顺序（Columns 集合中的顺序）添加数据，而不是显示顺序
+				// 第一列
+				string firstColKey = lvServers.Columns[0].Tag as string ?? "def";
+				ListViewItem listViewItem = new ListViewItem(GetColumnValue(vmessItem, firstColKey, num));
+				
+				// 后续列按物理顺序添加
+				for (int j = 1; j < lvServers.Columns.Count; j++)
 				{
-					string key = currentColumnOrder[j];
-					Utils.AddSubItem(listViewItem, key, GetColumnValue(vmessItem, key, num));
+					string key = lvServers.Columns[j].Tag as string;
+					if (!string.IsNullOrEmpty(key))
+					{
+						Utils.AddSubItem(listViewItem, key, GetColumnValue(vmessItem, key, num));
+					}
 				}
 				
-				if (config.recordTestTime && IsColumnVisible("lastTestTime"))
-				{
-					Utils.AddSubItem(listViewItem, EServerColName.lastTestTime.ToString(), vmessItem.lastTestTime);
-				}
 				listViewItem.Tag = i;
 				if (num % 2 == 1)
 				{
@@ -1806,89 +1801,101 @@ public class MainForm : Form
 		}
 	}
 
+	// 当前排序的列 key
+	private string currentSortColumnKey = null;
+
 	private void lvServers_ColumnClick(object sender, ColumnClickEventArgs e)
 	{
-		if (e.Column < 0)
+		if (e.Column < 0 || e.Column >= lvServers.Columns.Count)
 		{
 			return;
 		}
 		try
 		{
-			// 使用 currentSortColumn 和 currentSortAscending 来判断排序方向
-			bool flag;
-			if (currentSortColumn == e.Column)
+			// 获取被点击列的 key
+			string columnKey = lvServers.Columns[e.Column].Tag as string;
+			if (string.IsNullOrEmpty(columnKey))
+			{
+				return;
+			}
+			
+			// 判断排序方向
+			bool ascending;
+			if (currentSortColumnKey == columnKey)
 			{
 				// 同一列，切换排序方向
-				flag = !currentSortAscending;
+				ascending = !currentSortAscending;
 			}
 			else
 			{
 				// 不同列，默认升序
-				flag = true;
+				ascending = true;
 			}
-			// 根据列索引获取对应的枚举值（考虑隐藏列）
-			EServerColName colName = GetServerColNameByIndex(e.Column);
-			if (ConfigHandler.SortServers(ref config, colName, flag) != 0)
+			
+			// 根据 key 获取对应的枚举值
+			EServerColName colName = GetServerColNameByKey(columnKey);
+			if (ConfigHandler.SortServers(ref config, colName, ascending) != 0)
 			{
 				return;
 			}
 			RefreshServers();
-			SetSortIcon(e.Column, flag);
+			SetSortIconByKey(columnKey, ascending);
+			currentSortColumnKey = columnKey;
+			currentSortAscending = ascending;
 		}
 		catch
 		{
 		}
 	}
 
-	private void SetSortIcon(int columnIndex, bool ascending)
+	private EServerColName GetServerColNameByKey(string key)
 	{
-		try
+		return key switch
 		{
-			IntPtr hWnd = SendMessage(lvServers.Handle, 4127u, IntPtr.Zero, IntPtr.Zero);
-			for (int i = 0; i < lvServers.Columns.Count; i++)
-			{
-				HDITEM lParam = new HDITEM
-				{
-					mask = 4
-				};
-				SendMessageHDITEM(hWnd, 4619u, (IntPtr)i, ref lParam);
-				lParam.fmt &= -1537;
-				SendMessageHDITEM(hWnd, 4620u, (IntPtr)i, ref lParam);
-			}
-			if (columnIndex >= 0 && columnIndex < lvServers.Columns.Count)
-			{
-				HDITEM lParam2 = new HDITEM
-				{
-					mask = 4
-				};
-				SendMessageHDITEM(hWnd, 4619u, (IntPtr)columnIndex, ref lParam2);
-				lParam2.fmt |= (ascending ? 1024 : 512);
-				SendMessageHDITEM(hWnd, 4620u, (IntPtr)columnIndex, ref lParam2);
-				currentSortColumn = columnIndex;
-				currentSortAscending = ascending;
-			}
-		}
-		catch
-		{
-		}
+			"def" => EServerColName.def,
+			"configType" => EServerColName.configType,
+			"remarks" => EServerColName.remarks,
+			"address" => EServerColName.address,
+			"port" => EServerColName.port,
+			"security" => EServerColName.security,
+			"network" => EServerColName.network,
+			"tls" => EServerColName.tls,
+			"subRemarks" => EServerColName.subRemarks,
+			"httpsDelay" => EServerColName.httpsDelay,
+			"testResult" => EServerColName.testResult,
+			"MaxSpeed" => EServerColName.MaxSpeed,
+			"lastTestTime" => EServerColName.lastTestTime,
+			_ => EServerColName.def
+		};
 	}
 
-	private void ClearSortIcon()
+	private void SetSortIconByKey(string columnKey, bool ascending)
 	{
 		try
 		{
 			IntPtr hWnd = SendMessage(lvServers.Handle, 4127u, IntPtr.Zero, IntPtr.Zero);
+			
+			// 清除所有列的排序图标
 			for (int i = 0; i < lvServers.Columns.Count; i++)
 			{
-				HDITEM lParam = new HDITEM
-				{
-					mask = 4
-				};
+				HDITEM lParam = new HDITEM { mask = 4 };
 				SendMessageHDITEM(hWnd, 4619u, (IntPtr)i, ref lParam);
 				lParam.fmt &= -1537;
 				SendMessageHDITEM(hWnd, 4620u, (IntPtr)i, ref lParam);
 			}
-			currentSortColumn = -1;
+			
+			// 找到目标列的物理索引并设置排序图标
+			for (int i = 0; i < lvServers.Columns.Count; i++)
+			{
+				if (lvServers.Columns[i].Tag as string == columnKey)
+				{
+					HDITEM lParam2 = new HDITEM { mask = 4 };
+					SendMessageHDITEM(hWnd, 4619u, (IntPtr)i, ref lParam2);
+					lParam2.fmt |= (ascending ? 1024 : 512);
+					SendMessageHDITEM(hWnd, 4620u, (IntPtr)i, ref lParam2);
+					break;
+				}
+			}
 		}
 		catch
 		{
@@ -3339,32 +3346,28 @@ public class MainForm : Form
 			3 => EServerColName.lastTestTime, 
 			_ => EServerColName.testResult, 
 		};
+		string columnKey = cmbSortColumn.SelectedIndex switch
+		{
+			0 => "testResult",
+			1 => "MaxSpeed",
+			2 => "httpsDelay",
+			3 => "lastTestTime",
+			_ => "testResult",
+		};
 		bool flag = cmbSortOrder.SelectedIndex == 1;
 		try
 		{
 			ConfigHandler.SortServers(ref config, name, flag);
 			RefreshServers();
-			SetSortIcon(GetSortColumnIndex(), flag);
+			SetSortIconByKey(columnKey, flag);
+			currentSortColumnKey = columnKey;
+			currentSortAscending = flag;
 			AppendText(notify: false, "自动排序完成：按 " + cmbSortColumn.Text + " " + cmbSortOrder.Text);
 		}
 		catch (Exception ex)
 		{
 			AppendText(notify: false, "排序失败：" + ex.Message);
 		}
-	}
-
-	private int GetSortColumnIndex()
-	{
-		// 根据下拉框选择获取对应的列名，然后查找实际的列索引
-		string columnText = cmbSortColumn.SelectedIndex switch
-		{
-			0 => "平均速度",
-			1 => "峰值速度",
-			2 => "HTTPS延迟",
-			3 => "最后测速",
-			_ => "平均速度",
-		};
-		return GetColumnIndexByName(columnText);
 	}
 
 	private double GetSortValue(ListViewItem item, int columnIndex)
