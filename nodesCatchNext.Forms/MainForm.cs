@@ -1814,22 +1814,30 @@ public class MainForm : Form
 		}
 		try
 		{
-			string value = lvServers.Columns[e.Column].Tag?.ToString();
-			bool flag = Utils.IsNullOrEmpty(value) || !Convert.ToBoolean(value);
+			// 使用 currentSortColumn 和 currentSortAscending 来判断排序方向
+			bool flag;
+			if (currentSortColumn == e.Column)
+			{
+				// 同一列，切换排序方向
+				flag = !currentSortAscending;
+			}
+			else
+			{
+				// 不同列，默认升序
+				flag = true;
+			}
 			// 根据列索引获取对应的枚举值（考虑隐藏列）
 			EServerColName colName = GetServerColNameByIndex(e.Column);
 			if (ConfigHandler.SortServers(ref config, colName, flag) != 0)
 			{
 				return;
 			}
-			lvServers.Columns[e.Column].Tag = Convert.ToString(flag);
 			RefreshServers();
 			SetSortIcon(e.Column, flag);
 		}
 		catch
 		{
 		}
-		_ = e.Column;
 	}
 
 	private void SetSortIcon(int columnIndex, bool ascending)

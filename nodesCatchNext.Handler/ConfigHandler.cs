@@ -653,7 +653,8 @@ internal class ConfigHandler
 		{
 			return -1;
 		}
-		if ((uint)(name - 1) > 5u && (uint)(name - 8) > 1u && name != EServerColName.MaxSpeed && name != EServerColName.tls && name != EServerColName.subRemarks && name != EServerColName.httpsDelay && name != EServerColName.testResult && name != EServerColName.lastTestTime)
+		// 只允许排序特定列
+		if (name == EServerColName.def)
 		{
 			return -1;
 		}
