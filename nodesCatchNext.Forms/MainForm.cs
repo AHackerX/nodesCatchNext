@@ -2077,11 +2077,12 @@ public class MainForm : Form
 			{
 				AppendText(notify: false, "单线程模式仅支持多线程测速，请将线程数设置为0");
 			}
-			Dictionary<string, int> dictionary = RemoveServer();
+			// 使用专门的方法删除 HTTPS 延迟测试失败的节点（无论是否严格模式）
+			Dictionary<string, int> dictionary = RemoveHttpsDelayFailedServers();
 			num = dictionary.Values.Sum();
 			if (num > 0)
 			{
-				AppendText(notify: false, $"移除无效服务器：共 {num} 个");
+				AppendText(notify: false, $"移除HTTPS延迟测试失败的节点：共 {num} 个");
 				foreach (KeyValuePair<string, int> item2 in dictionary)
 				{
 					AppendText(notify: false, $"  - {item2.Key}：{item2.Value} 个");
@@ -2091,7 +2092,7 @@ public class MainForm : Form
 			}
 			else
 			{
-				AppendText(notify: false, "移除无效服务器：0 个");
+				AppendText(notify: false, "移除HTTPS延迟测试失败的节点：0 个");
 			}
 		}
 		if (cbSpeedTest.Checked && !token.IsCancellationRequested)
@@ -2309,7 +2310,8 @@ public class MainForm : Form
 						thread2.Start();
 						thread2.Join();
 					}
-					Dictionary<string, int> dictionary = RemoveServer();
+					// 使用专门的方法删除 HTTPS 延迟测试失败的节点（无论是否严格模式）
+					Dictionary<string, int> dictionary = RemoveHttpsDelayFailedServers();
 					int num = dictionary.Values.Sum();
 					if (num > 0)
 					{
@@ -2557,6 +2559,12 @@ public class MainForm : Form
 
 	public Dictionary<string, int> RemoveServer()
 	{
+		// 确保在 UI 线程上执行
+		if (lvServers.InvokeRequired)
+		{
+			return (Dictionary<string, int>)lvServers.Invoke(new Func<Dictionary<string, int>>(RemoveServer));
+		}
+		
 		Dictionary<string, int> dictionary = new Dictionary<string, int>();
 		List<int> list = new List<int>();
 		for (int num = lvServers.Items.Count - 1; num >= 0; num--)
@@ -2614,6 +2622,59 @@ public class MainForm : Form
 			
 			if (text != null)
 			{
+				if (lvServers.Items[num].Tag != null)
+				{
+					int item = (int)lvServers.Items[num].Tag;
+					list.Add(item);
+				}
+				if (dictionary.ContainsKey(text))
+				{
+					dictionary[text]++;
+				}
+				else
+				{
+					dictionary[text] = 1;
+				}
+			}
+		}
+		list.Sort((int a, int b) => b.CompareTo(a));
+		foreach (int item2 in list)
+		{
+			config.vmess.RemoveAt(item2);
+		}
+		return dictionary;
+	}
+
+	/// <summary>
+	/// 移除 HTTPS 延迟测试失败的节点（用于 HTTPS 测速后、下载测速前）
+	/// 无论是否严格模式，只要 HTTPS 延迟测试失败就删除
+	/// </summary>
+	public Dictionary<string, int> RemoveHttpsDelayFailedServers()
+	{
+		// 确保在 UI 线程上执行
+		if (lvServers.InvokeRequired)
+		{
+			return (Dictionary<string, int>)lvServers.Invoke(new Func<Dictionary<string, int>>(RemoveHttpsDelayFailedServers));
+		}
+		
+		Dictionary<string, int> dictionary = new Dictionary<string, int>();
+		List<int> list = new List<int>();
+		for (int num = lvServers.Items.Count - 1; num >= 0; num--)
+		{
+			string text = null;
+			string httpsDelay = lvServers.Items[num].SubItems.ContainsKey("httpsDelay") ? lvServers.Items[num].SubItems["httpsDelay"].Text : "";
+			
+			// 检查是否为等待/测试中状态
+			bool httpsDelayPending = string.IsNullOrEmpty(httpsDelay) || httpsDelay == "测速被取消" || httpsDelay == "等待测速线程..." || httpsDelay == "正在测速...";
+			
+			// 检查 HTTPS 延迟测试是否失败（不包含 "ms" 表示失败）
+			bool httpsDelayFailed = !httpsDelayPending && httpsDelay.IndexOf("ms") == -1;
+			
+			if (httpsDelayFailed)
+			{
+				text = httpsDelay.Contains("超时") || httpsDelay.Contains("Timeout") ? "HTTPS延迟 超时" :
+				       httpsDelay.Contains("无法连接") ? "HTTPS延迟 无法连接" : "HTTPS延迟 测试失败";
+				
 				if (lvServers.Items[num].Tag != null)
 				{
 					int item = (int)lvServers.Items[num].Tag;
