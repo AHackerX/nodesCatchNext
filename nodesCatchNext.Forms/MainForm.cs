@@ -2135,7 +2135,7 @@ public class MainForm : Form
 			}
 			if (list2.Count == 0)
 			{
-				AppendText(notify: false, "所有选中节点均已被删除，跳过速度测试");
+				AppendText(notify: false, "所有选中节点均已被删除，测速结束");
 				Invoke((Action)delegate
 				{
 					btStopTest.Enabled = false;
@@ -2662,7 +2662,7 @@ public class MainForm : Form
 
 	/// <summary>
 	/// 移除 HTTPS 延迟测试失败的节点（用于 HTTPS 测速后、下载测速前）
-	/// 无论是否严格模式，只要 HTTPS 延迟测试失败就删除
+	/// 只删除 speedtestNodeMap 中 HTTPS 延迟测试失败的节点
 	/// </summary>
 	public Dictionary<string, int> RemoveHttpsDelayFailedServers()
 	{
@@ -2674,10 +2674,23 @@ public class MainForm : Form
 		
 		Dictionary<string, int> dictionary = new Dictionary<string, int>();
 		List<int> list = new List<int>();
-		for (int num = lvServers.Items.Count - 1; num >= 0; num--)
+		
+		// 只检查 speedtestNodeMap 中的节点
+		foreach (var kvp in speedtestNodeMap)
 		{
-			string text = null;
-			string httpsDelay = lvServers.Items[num].SubItems.ContainsKey("httpsDelay") ? lvServers.Items[num].SubItems["httpsDelay"].Text : "";
+			int vmessIndex = kvp.Key;
+			VmessItem vmessItem = kvp.Value;
+			
+			// 检查节点是否还存在于 config.vmess 中
+			if (vmessIndex < 0 || vmessIndex >= config.vmess.Count)
+				continue;
+			
+			// 检查是否是同一个节点（防止索引错位）
+			var currentItem = config.vmess[vmessIndex];
+			if (currentItem.address != vmessItem.address || currentItem.port != vmessItem.port)
+				continue;
+			
+			string httpsDelay = vmessItem.httpsDelay ?? "";
 			
 			// 检查是否为等待/测试中状态
 			bool httpsDelayPending = string.IsNullOrEmpty(httpsDelay) || httpsDelay == "测速被取消" || httpsDelay == "等待测速线程..." || httpsDelay == "正在测速...";
@@ -2687,14 +2700,11 @@ public class MainForm : Form
 			
 			if (httpsDelayFailed)
 			{
-				text = httpsDelay.Contains("超时") || httpsDelay.Contains("Timeout") ? "HTTPS延迟 超时" :
+				string text = httpsDelay.Contains("超时") || httpsDelay.Contains("Timeout") ? "HTTPS延迟 超时" :
 				       httpsDelay.Contains("无法连接") ? "HTTPS延迟 无法连接" : "HTTPS延迟 测试失败";
 				
-				if (lvServers.Items[num].Tag != null)
-				{
-					int item = (int)lvServers.Items[num].Tag;
-					list.Add(item);
-				}
+				list.Add(vmessIndex);
+				
 				if (dictionary.ContainsKey(text))
 				{
 					dictionary[text]++;
@@ -2705,11 +2715,23 @@ public class MainForm : Form
 				}
 			}
 		}
+		
+		// 从大到小排序，确保删除时索引不会错位
 		list.Sort((int a, int b) => b.CompareTo(a));
-		foreach (int item2 in list)
+		foreach (int item in list)
 		{
-			config.vmess.RemoveAt(item2);
+			if (item >= 0 && item < config.vmess.Count)
+			{
+				config.vmess.RemoveAt(item);
+			}
 		}
+		
+		// 如果删除了节点，从 speedtestNodeMap 中也移除
+		foreach (int item in list)
+		{
+			speedtestNodeMap.Remove(item);
+		}
+		
 		return dictionary;
 	}
 
