@@ -103,16 +103,17 @@ public static class ClashYamlParser
                 continue;
             }
             
-            // 如果上一行是单独的 "-"，这一行应该是 name: 开头
-            if (pendingNewBlock && trimmed.StartsWith("name:"))
+            // 如果上一行是单独的 "-"，这一行应该是 name: 或 type: 开头
+            if (pendingNewBlock && (trimmed.StartsWith("name:") || trimmed.StartsWith("type:")))
             {
-                currentBlock.Add("- " + line.TrimStart()); // 合并成 "- name: xxx" 格式
+                currentBlock.Add("- " + line.TrimStart()); // 合并成 "- name/type: xxx" 格式
                 pendingNewBlock = false;
                 continue;
             }
             
-            // 检测多行格式新代理块开始
-            if (trimmed.StartsWith("- name:") || trimmed.StartsWith("-  name:"))
+            // 检测多行格式新代理块开始（支持 - name: 或 - type: 开头）
+            if (trimmed.StartsWith("- name:") || trimmed.StartsWith("-  name:") || 
+                trimmed.StartsWith("- type:") || trimmed.StartsWith("-  type:"))
             {
                 if (inProxy && currentBlock.Count > 0)
                 {
