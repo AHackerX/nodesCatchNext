@@ -2365,44 +2365,9 @@ public class MainForm : Form
 				return;
 			}
 			
-			// 不要重新选中所有显示的节点，而是使用 speedtestNodeMap 中剩余的节点
-			// 需要重新构建索引映射，因为删除节点后索引已经改变
-			Dictionary<int, VmessItem> newSpeedtestNodeMap = new Dictionary<int, VmessItem>();
-			List<int> newLvSelecteds = new List<int>();
-			
-			foreach (var kvp in speedtestNodeMap)
-			{
-				int oldIndex = kvp.Key;
-				VmessItem oldVmessItem = kvp.Value;  // 保留原始对象引用
-				
-				// 在 config.vmess 中查找这个节点的新索引
-				// 通过对象引用比较来查找（因为 SpeedtestHandler 也是这样做的）
-				for (int i = 0; i < config.vmess.Count; i++)
-				{
-					// 使用对象引用比较，与 SpeedtestHandler.GetCurrentNodeIndex 保持一致
-					if (config.vmess[i] == oldVmessItem)
-					{
-						newLvSelecteds.Add(i);
-						// 保留原始对象引用，不要替换为新的对象
-						// 这样 SpeedtestHandler._nodeSnapshot 才能正确找到节点
-						newSpeedtestNodeMap[i] = oldVmessItem;
-						break;
-					}
-				}
-			}
-			
-			// 更新 speedtestNodeMap
-			speedtestNodeMap = newSpeedtestNodeMap;
-			
-			if (newLvSelecteds.Count == 0)
-			{
-				AppendText(notify: false, "所有测速节点均已被删除，跳过下载测速");
-				Invoke((Action)delegate
-				{
-					btnStartTest.Text = "一键自动测速";
-				});
-				return;
-			}
+			// speedtestNodeMap 已经在 RemoveHttpsDelayFailedServers() 中更新了索引
+			// 直接使用 speedtestNodeMap 中的键作为新的索引列表
+			List<int> newLvSelecteds = new List<int>(speedtestNodeMap.Keys);
 			
 			AppendText(notify: false, $"开始下载测速（共 {newLvSelecteds.Count} 个节点）...");
 			
@@ -2762,11 +2727,30 @@ public class MainForm : Form
 			}
 		}
 		
-		// 如果删除了节点，从 speedtestNodeMap 中也移除
-		foreach (int item in list)
+		// 删除节点后，需要重建 speedtestNodeMap，因为索引已经改变
+		// 保留未删除节点的对象引用，并更新它们的新索引
+		Dictionary<int, VmessItem> newSpeedtestNodeMap = new Dictionary<int, VmessItem>();
+		foreach (var kvp in speedtestNodeMap)
 		{
-			speedtestNodeMap.Remove(item);
+			int oldIndex = kvp.Key;
+			VmessItem vmessItem = kvp.Value;
+			
+			// 如果这个节点被删除了，跳过
+			if (list.Contains(oldIndex))
+				continue;
+			
+			// 在 config.vmess 中查找这个节点的新索引（通过对象引用）
+			for (int i = 0; i < config.vmess.Count; i++)
+			{
+				if (config.vmess[i] == vmessItem)
+				{
+					newSpeedtestNodeMap[i] = vmessItem;
+					break;
+				}
+			}
 		}
+		
+		speedtestNodeMap = newSpeedtestNodeMap;
 		
 		return dictionary;
 	}
@@ -2878,11 +2862,30 @@ public class MainForm : Form
 			}
 		}
 		
-		// 如果删除了节点，从 speedtestNodeMap 中也移除
-		foreach (int item in list)
+		// 删除节点后，需要重建 speedtestNodeMap，因为索引已经改变
+		// 保留未删除节点的对象引用，并更新它们的新索引
+		Dictionary<int, VmessItem> newSpeedtestNodeMap = new Dictionary<int, VmessItem>();
+		foreach (var kvp in speedtestNodeMap)
 		{
-			speedtestNodeMap.Remove(item);
+			int oldIndex = kvp.Key;
+			VmessItem vmessItem = kvp.Value;
+			
+			// 如果这个节点被删除了，跳过
+			if (list.Contains(oldIndex))
+				continue;
+			
+			// 在 config.vmess 中查找这个节点的新索引（通过对象引用）
+			for (int i = 0; i < config.vmess.Count; i++)
+			{
+				if (config.vmess[i] == vmessItem)
+				{
+					newSpeedtestNodeMap[i] = vmessItem;
+					break;
+				}
+			}
 		}
+		
+		speedtestNodeMap = newSpeedtestNodeMap;
 		
 		return dictionary;
 	}
