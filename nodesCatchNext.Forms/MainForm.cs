@@ -2366,24 +2366,33 @@ public class MainForm : Form
 			}
 			
 			// 不要重新选中所有显示的节点，而是使用 speedtestNodeMap 中剩余的节点
-			// 需要重新构建 lvSelecteds 列表，因为删除节点后索引已经改变
+			// 需要重新构建索引映射，因为删除节点后索引已经改变
+			Dictionary<int, VmessItem> newSpeedtestNodeMap = new Dictionary<int, VmessItem>();
 			List<int> newLvSelecteds = new List<int>();
+			
 			foreach (var kvp in speedtestNodeMap)
 			{
 				int oldIndex = kvp.Key;
-				VmessItem vmessItem = kvp.Value;
+				VmessItem oldVmessItem = kvp.Value;  // 保留原始对象引用
 				
 				// 在 config.vmess 中查找这个节点的新索引
+				// 通过对象引用比较来查找（因为 SpeedtestHandler 也是这样做的）
 				for (int i = 0; i < config.vmess.Count; i++)
 				{
-					var item = config.vmess[i];
-					if (item.address == vmessItem.address && item.port == vmessItem.port && item.remarks == vmessItem.remarks)
+					// 使用对象引用比较，与 SpeedtestHandler.GetCurrentNodeIndex 保持一致
+					if (config.vmess[i] == oldVmessItem)
 					{
 						newLvSelecteds.Add(i);
+						// 保留原始对象引用，不要替换为新的对象
+						// 这样 SpeedtestHandler._nodeSnapshot 才能正确找到节点
+						newSpeedtestNodeMap[i] = oldVmessItem;
 						break;
 					}
 				}
 			}
+			
+			// 更新 speedtestNodeMap
+			speedtestNodeMap = newSpeedtestNodeMap;
 			
 			if (newLvSelecteds.Count == 0)
 			{
@@ -2414,15 +2423,7 @@ public class MainForm : Form
 				return;
 			}
 			
-			// 重新构建 speedtestNodeMap，使用新的索引
-			speedtestNodeMap.Clear();
-			foreach (int newIndex in newLvSelecteds)
-			{
-				if (newIndex >= 0 && newIndex < config.vmess.Count)
-				{
-					speedtestNodeMap[newIndex] = config.vmess[newIndex];
-				}
-			}
+			// speedtestNodeMap 已经在上面更新了索引，不需要重新构建
 			
 			Task.Run(delegate
 			{
