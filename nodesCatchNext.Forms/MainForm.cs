@@ -2330,7 +2330,7 @@ public class MainForm : Form
 					int num = dictionary.Values.Sum();
 					if (num > 0)
 					{
-						AppendText(notify: false, $"移除无效服务器：共 {num} 个");
+						AppendText(notify: false, $"移除HTTPS延迟测试失败的节点：共 {num} 个");
 						foreach (KeyValuePair<string, int> item2 in dictionary)
 						{
 							AppendText(notify: false, $"  - {item2.Key}：{item2.Value} 个");
@@ -2338,7 +2338,7 @@ public class MainForm : Form
 					}
 					else
 					{
-						AppendText(notify: false, "移除无效服务器：0 个");
+						AppendText(notify: false, "移除HTTPS延迟测试失败的节点：0 个");
 					}
 					Thread.Sleep(200);
 					RefreshServers();
@@ -2354,18 +2354,49 @@ public class MainForm : Form
 		}
 		if (cbSpeedTest.Checked && lvServers.Items.Count > 0)
 		{
-			foreach (ListViewItem item3 in lvServers.Items)
+			// 检查 speedtestNodeMap 是否为空（所有节点都被删除了）
+			if (speedtestNodeMap.Count == 0)
 			{
-				item3.Selected = true;
-			}
-			if (GetLvSelectedIndex() < 0)
-			{
+				AppendText(notify: false, "所有测速节点均已被删除，测速结束");
 				Invoke((Action)delegate
 				{
 					btnStartTest.Text = "一键自动测速";
 				});
 				return;
 			}
+			
+			// 不要重新选中所有显示的节点，而是使用 speedtestNodeMap 中剩余的节点
+			// 需要重新构建 lvSelecteds 列表，因为删除节点后索引已经改变
+			List<int> newLvSelecteds = new List<int>();
+			foreach (var kvp in speedtestNodeMap)
+			{
+				int oldIndex = kvp.Key;
+				VmessItem vmessItem = kvp.Value;
+				
+				// 在 config.vmess 中查找这个节点的新索引
+				for (int i = 0; i < config.vmess.Count; i++)
+				{
+					var item = config.vmess[i];
+					if (item.address == vmessItem.address && item.port == vmessItem.port && item.remarks == vmessItem.remarks)
+					{
+						newLvSelecteds.Add(i);
+						break;
+					}
+				}
+			}
+			
+			if (newLvSelecteds.Count == 0)
+			{
+				AppendText(notify: false, "所有测速节点均已被删除，跳过下载测速");
+				Invoke((Action)delegate
+				{
+					btnStartTest.Text = "一键自动测速";
+				});
+				return;
+			}
+			
+			AppendText(notify: false, $"开始下载测速（共 {newLvSelecteds.Count} 个节点）...");
+			
 			config.index = 0;
 			if (config.DownloadThreadNum != 0)
 			{
@@ -2382,17 +2413,20 @@ public class MainForm : Form
 				MessageBox.Show(ex3.Message, "出现异常");
 				return;
 			}
+			
+			// 重新构建 speedtestNodeMap，使用新的索引
 			speedtestNodeMap.Clear();
-			foreach (int lvSelected3 in lvSelecteds)
+			foreach (int newIndex in newLvSelecteds)
 			{
-				if (lvSelected3 >= 0 && lvSelected3 < config.vmess.Count)
+				if (newIndex >= 0 && newIndex < config.vmess.Count)
 				{
-					speedtestNodeMap[lvSelected3] = config.vmess[lvSelected3];
+					speedtestNodeMap[newIndex] = config.vmess[newIndex];
 				}
 			}
+			
 			Task.Run(delegate
 			{
-				foreach (int lvSelected4 in lvSelecteds)
+				foreach (int lvSelected4 in newLvSelecteds)
 				{
 					// 使用 Invoke 确保在 UI 线程上更新
 					lvServers.Invoke((MethodInvoker)delegate
@@ -2401,7 +2435,7 @@ public class MainForm : Form
 					});
 				}
 			}).Wait();
-			SpeedtestHandler testSpeed = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, lvSelecteds, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, btStopTestStat, pid);
+			SpeedtestHandler testSpeed = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, newLvSelecteds, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, btStopTestStat, pid);
 			if (config.DownloadThreadNum == 0)
 			{
 				Thread thread3 = new Thread((ThreadStart)delegate
@@ -2430,11 +2464,12 @@ public class MainForm : Form
 					lvServers.Columns[httpsDelayColIndex].Tag = true;
 					lvServers_ColumnClick(null, new ColumnClickEventArgs(httpsDelayColIndex));
 				}
-				Dictionary<string, int> dictionary2 = RemoveServer();
+				// 使用专门的方法删除下载测速失败的节点（只删除 speedtestNodeMap 中的节点）
+				Dictionary<string, int> dictionary2 = RemoveDownloadTestFailedServers();
 				int num2 = dictionary2.Values.Sum();
 				if (num2 > 0)
 				{
-					AppendText(notify: false, $"移除无效服务器：共 {num2} 个");
+					AppendText(notify: false, $"移除下载测速失败的节点：共 {num2} 个");
 					foreach (KeyValuePair<string, int> item4 in dictionary2)
 					{
 						AppendText(notify: false, $"  - {item4.Key}：{item4.Value} 个");
@@ -2442,7 +2477,7 @@ public class MainForm : Form
 				}
 				else
 				{
-					AppendText(notify: false, "移除无效服务器：0 个");
+					AppendText(notify: false, "移除下载测速失败的节点：0 个");
 				}
 				RefreshServers();
 				Thread.Sleep(200);
@@ -2703,6 +2738,122 @@ public class MainForm : Form
 				string text = httpsDelay.Contains("超时") || httpsDelay.Contains("Timeout") ? "HTTPS延迟 超时" :
 				       httpsDelay.Contains("无法连接") ? "HTTPS延迟 无法连接" : "HTTPS延迟 测试失败";
 				
+				list.Add(vmessIndex);
+				
+				if (dictionary.ContainsKey(text))
+				{
+					dictionary[text]++;
+				}
+				else
+				{
+					dictionary[text] = 1;
+				}
+			}
+		}
+		
+		// 从大到小排序，确保删除时索引不会错位
+		list.Sort((int a, int b) => b.CompareTo(a));
+		foreach (int item in list)
+		{
+			if (item >= 0 && item < config.vmess.Count)
+			{
+				config.vmess.RemoveAt(item);
+			}
+		}
+		
+		// 如果删除了节点，从 speedtestNodeMap 中也移除
+		foreach (int item in list)
+		{
+			speedtestNodeMap.Remove(item);
+		}
+		
+		return dictionary;
+	}
+
+	/// <summary>
+	/// 移除下载测速失败的节点（用于下载测速后）
+	/// 只删除 speedtestNodeMap 中下载测速失败的节点
+	/// </summary>
+	public Dictionary<string, int> RemoveDownloadTestFailedServers()
+	{
+		// 确保在 UI 线程上执行
+		if (lvServers.InvokeRequired)
+		{
+			return (Dictionary<string, int>)lvServers.Invoke(new Func<Dictionary<string, int>>(RemoveDownloadTestFailedServers));
+		}
+		
+		Dictionary<string, int> dictionary = new Dictionary<string, int>();
+		List<int> list = new List<int>();
+		
+		// 只检查 speedtestNodeMap 中的节点
+		foreach (var kvp in speedtestNodeMap)
+		{
+			int vmessIndex = kvp.Key;
+			VmessItem vmessItem = kvp.Value;
+			
+			// 检查节点是否还存在于 config.vmess 中
+			if (vmessIndex < 0 || vmessIndex >= config.vmess.Count)
+				continue;
+			
+			// 检查是否是同一个节点（防止索引错位）
+			var currentItem = config.vmess[vmessIndex];
+			if (currentItem.address != vmessItem.address || currentItem.port != vmessItem.port)
+				continue;
+			
+			string httpsDelay = vmessItem.httpsDelay ?? "";
+			string testResult = vmessItem.testResult ?? "";
+			
+			// 检查是否为等待/测试中状态
+			bool httpsDelayPending = string.IsNullOrEmpty(httpsDelay) || httpsDelay == "测速被取消" || httpsDelay == "等待测速线程..." || httpsDelay == "正在测速...";
+			bool testResultPending = string.IsNullOrEmpty(testResult) || testResult == "等待测速线程..." || testResult == "测速被取消" || testResult == "正在测试...";
+			
+			// 检查测试是否失败
+			bool httpsDelayFailed = !httpsDelayPending && httpsDelay.IndexOf("ms") == -1;
+			bool testResultFailed = !testResultPending && testResult.IndexOf("MB/s") == -1 && testResult.IndexOf("KB/s") == -1;
+			
+			// 检查是否为请求被中止/取消的错误
+			bool testResultAborted = !testResultPending && (testResult.Contains("请求被中止") || testResult.Contains("请求已被取消") || testResult.Contains("Aborted") || testResult.Contains("Canceled"));
+			
+			string text = null;
+			
+			if (config.strictExclusionMode)
+			{
+				// 严格模式：HTTPS延迟失败 或 下载测速失败，满足一个就删除
+				if (httpsDelayFailed)
+				{
+					text = "HTTPS延迟 测试失败";
+				}
+				else if (testResultFailed)
+				{
+					text = ((!testResult.Contains("超时") && !testResult.Contains("Timeout")) ? ((!testResult.Contains("连接失败") && !testResult.Contains("无法连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
+				}
+			}
+			else
+			{
+				// 非严格模式：HTTPS延迟失败 且 下载测速也失败才删除
+				if (httpsDelayFailed && testResultFailed)
+				{
+					text = "HTTPS延迟和平均速度 均测试失败";
+				}
+				else if (httpsDelayFailed && testResultPending)
+				{
+					// HTTPS失败但下载测速未进行，视为失败
+					text = "HTTPS延迟 测试失败";
+				}
+				else if (httpsDelayPending && testResultFailed)
+				{
+					// HTTPS未测试但下载测速失败，视为失败
+					text = ((!testResult.Contains("超时") && !testResult.Contains("Timeout")) ? ((!testResult.Contains("连接失败") && !testResult.Contains("无法连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
+				}
+				else if (testResultAborted)
+				{
+					// 请求被中止/取消的情况，视为失败
+					text = "平均速度测试请求被中止";
+				}
+			}
+			
+			if (text != null)
+			{
 				list.Add(vmessIndex);
 				
 				if (dictionary.ContainsKey(text))
