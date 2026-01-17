@@ -2370,6 +2370,9 @@ public class MainForm : Form
 			// 直接使用 speedtestNodeMap 中的键作为新的索引列表
 			List<int> newLvSelecteds = new List<int>(speedtestNodeMap.Keys);
 			
+			// 更新 lvSelecteds，确保 createYamlConfig 使用正确的索引
+			lvSelecteds = newLvSelecteds;
+			
 			AppendText(notify: false, $"开始下载测速（共 {newLvSelecteds.Count} 个节点）...");
 			
 			config.index = 0;
