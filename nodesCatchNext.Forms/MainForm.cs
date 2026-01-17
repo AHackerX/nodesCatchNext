@@ -727,6 +727,7 @@ public class MainForm : Form
 				// 第一列
 				string firstColKey = lvServers.Columns[0].Tag as string ?? "def";
 				ListViewItem listViewItem = new ListViewItem(GetColumnValue(vmessItem, firstColKey, num));
+				listViewItem.Name = firstColKey; // 设置第一列的 Name
 				
 				// 后续列按物理顺序添加
 				for (int j = 1; j < lvServers.Columns.Count; j++)
@@ -2427,8 +2428,14 @@ public class MainForm : Form
 				int httpsDelayColIndex = GetColumnIndexByName("HTTPS延迟");
 				if (httpsDelayColIndex >= 0)
 				{
-					lvServers.Columns[httpsDelayColIndex].Tag = true;
-					lvServers_ColumnClick(null, new ColumnClickEventArgs(httpsDelayColIndex));
+					// 不要修改 Tag，使用 SetSortIconByKey 来设置排序
+					string columnKey = lvServers.Columns[httpsDelayColIndex].Tag as string;
+					if (!string.IsNullOrEmpty(columnKey))
+					{
+						currentSortColumnKey = columnKey;
+						currentSortAscending = true; // 升序排序
+						lvServers_ColumnClick(null, new ColumnClickEventArgs(httpsDelayColIndex));
+					}
 				}
 				// 使用专门的方法删除下载测速失败的节点（只删除 speedtestNodeMap 中的节点）
 				Dictionary<string, int> dictionary2 = RemoveDownloadTestFailedServers();
