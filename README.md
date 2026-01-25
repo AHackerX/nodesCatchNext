@@ -6,7 +6,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![.NET Framework](https://img.shields.io/badge/.NET_Framework-4.8-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![Release](https://img.shields.io/badge/release-v3.9-FF6B35?style=for-the-badge&logo=github&logoColor=white)](../../releases)
+[![Release](https://img.shields.io/badge/release-v4.0.0-FF6B35?style=for-the-badge&logo=github&logoColor=white)](../../releases)
 [![License](https://img.shields.io/badge/license-MIT-00C853?style=for-the-badge)](LICENSE)
 
 **🎯 基于 [不良林 nodesCatch V2.0](https://bulianglin.com/archives/nodescatch.html) 二次开发的代理节点管理和测速工具**
@@ -25,16 +25,14 @@
 
 <br>
 
-## 🎉 v3.9 新版本亮点
+## 🎉 v4.0.0 新版本亮点
 
 <div align="center">
 
 | 🆕 新功能 | 📝 描述 |
 |:---:|:---|
+| 🔐 **SS 2022** | 新增 Shadowsocks 2022 协议支持 |
 | 🎛️ **列自定义** | 支持自定义列的显示/隐藏和排列顺序 |
-| 🧹 **简化测速** | 移除 TLS RTT 测速，统一使用 HTTPS 延迟测速 |
-| 🔧 **稳定性提升** | 修复测速过程中"切换节点失败"的问题 |
-| 🛡️ **线程安全** | 修复测速时 UI 更新的线程安全问题 |
 
 </div>
 
@@ -165,7 +163,7 @@
 
 ### 📥 下载安装
 
-[![Download](https://img.shields.io/badge/下载最新版-v3.9-FF6B35?style=for-the-badge&logo=github)](https://github.com/AHackerX/nodesCatchNext/releases)
+[![Download](https://img.shields.io/badge/下载最新版-v4.0.0-FF6B35?style=for-the-badge&logo=github)](https://github.com/AHackerX/nodesCatchNext/releases)
 
 </div>
 
@@ -420,7 +418,36 @@
 ## 🔄 更新日志
 
 <details open>
-<summary><b>🏷️ v3.9 (最新版本)</b></summary>
+<summary><b>🏷️ v4.0.0 (最新版本)</b></summary>
+
+## 新增
+- 新增 Shadowsocks 2022 协议支持
+- 新增列头右键菜单，支持显示/隐藏和调整列顺序
+
+## 优化
+- 优化 Clash 配置文件兼容性，支持更多 YAML 格式变体
+- 优化代理格式解析，支持单独 "-" 行的 YAML 代理格式
+- 优化节点列表显示逻辑，修复"最后测速"列取消勾选后仍显示的问题
+
+## 修复
+- 修复列头点击排序失效问题
+- 修复拖动列头后排序显示错误的问题
+- 修复一键自动测速 HTTPS 测速后删除失败节点的问题
+- 修复 HTTPS 延迟测试失败节点删除逻辑
+- 修复下载测速后节点列表刷新时 HTTPS 延迟显示错误的问题
+- 修复删除节点后 speedtestNodeMap 索引不同步导致的数据错乱问题
+- 修复下载测速后排序导致列 Tag 被覆盖的问题
+- 修复下载测速时切换节点失败的问题
+- 修复一键自动测速删除失败节点后继续测速的逻辑
+
+## 信息
+- 修改文件: 6 个
+- 代码变更: +965/-601 行
+
+</details>
+
+<details>
+<summary><b>🏷️ v3.9</b></summary>
 
 - 🎛️ 新增列自定义功能，支持显示/隐藏和调整列顺序
 - 🧹 移除 TLS RTT 测速，简化为 HTTPS 延迟测速
