@@ -4396,7 +4396,7 @@ public class MainForm : Form
 		base.Margin = new System.Windows.Forms.Padding(5);
 		this.MinimumSize = new System.Drawing.Size(1760, 1330);
 		base.Name = "MainForm";
-		this.Text = "nodesCatchNext - V3.9";
+		this.Text = "nodesCatchNext - V4.0.0";
 		base.FormClosing += new System.Windows.Forms.FormClosingEventHandler(MainForm_FormClosing);
 		base.Load += new System.EventHandler(MainForm_Load);
 		base.ResizeEnd += new System.EventHandler(MainForm_ResizeEnd);
