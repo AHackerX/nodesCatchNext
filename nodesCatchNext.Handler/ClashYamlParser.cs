@@ -111,9 +111,8 @@ public static class ClashYamlParser
                 continue;
             }
             
-            // 检测多行格式新代理块开始（支持 - name: 或 - type: 开头）
-            if (trimmed.StartsWith("- name:") || trimmed.StartsWith("-  name:") || 
-                trimmed.StartsWith("- type:") || trimmed.StartsWith("-  type:"))
+            // 检测多行格式新代理块开始（以 - 开头且不是 - { 格式）
+            if (trimmed.StartsWith("- ") && !trimmed.StartsWith("- {"))
             {
                 if (inProxy && currentBlock.Count > 0)
                 {

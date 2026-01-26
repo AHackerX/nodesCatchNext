@@ -4682,14 +4682,39 @@ public class MainForm : Form
 					}
 					else
 					{
-						AppendText(notify: false, "--> 订阅内容格式不正确");
-						ShowMsg("订阅内容格式不正确");
+						AppendText(notify: false, "--> 尝试作为非Base64格式导入...");
+						if (MainFormHandler.Instance.AddBatchServers(config, args.Msg, subId) <= 0)
+						{
+							AppendText(notify: false, "--> 导入节点信息失败");
+							ShowMsg("导入节点信息失败");
+						}
+						else
+						{
+							AppendText(notify: false, "--> 节点信息更新完成");
+							int num = (config.vmess?.Count ?? 0) - nodeCountBefore;
+							InitSubscriptionTabs();
+							RefreshServersView();
+							ShowMsg($"订阅 \"{subRemarks}\" 更新完成，导入了 {num} 个节点");
+						}
 					}
 				}
 				else
 				{
-					AppendText(notify: false, "--> Base64解码失败，订阅内容可能为空");
-					ShowMsg("Base64解码失败，订阅内容可能为空");
+					// Base64解码失败，尝试用原始内容作为非Base64格式（如纯YAML）导入
+					AppendText(notify: false, "--> Base64解码失败，尝试作为非Base64格式导入...");
+					if (MainFormHandler.Instance.AddBatchServers(config, args.Msg, subId) <= 0)
+					{
+						AppendText(notify: false, "--> 导入节点信息失败");
+						ShowMsg("导入节点信息失败");
+					}
+					else
+					{
+						AppendText(notify: false, "--> 节点信息更新完成");
+						int num = (config.vmess?.Count ?? 0) - nodeCountBefore;
+						InitSubscriptionTabs();
+						RefreshServersView();
+						ShowMsg($"订阅 \"{subRemarks}\" 更新完成，导入了 {num} 个节点");
+					}
 				}
 			}
 			else
