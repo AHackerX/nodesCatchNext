@@ -2585,12 +2585,18 @@ public class MainForm : Form
 
 	public Dictionary<string, int> RemoveServer()
 	{
+		// 如果用户关闭了自动删除功能，直接返回空字典
+		if (!config.autoRemoveHttpsDelayFail)
+		{
+			return new Dictionary<string, int>();
+		}
+
 		// 确保在 UI 线程上执行
 		if (lvServers.InvokeRequired)
 		{
 			return (Dictionary<string, int>)lvServers.Invoke(new Func<Dictionary<string, int>>(RemoveServer));
 		}
-		
+
 		Dictionary<string, int> dictionary = new Dictionary<string, int>();
 		List<int> list = new List<int>();
 		for (int num = lvServers.Items.Count - 1; num >= 0; num--)
@@ -2677,6 +2683,12 @@ public class MainForm : Form
 	/// </summary>
 	public Dictionary<string, int> RemoveHttpsDelayFailedServers()
 	{
+		// 如果用户关闭了自动删除功能，直接返回空字典
+		if (!config.autoRemoveHttpsDelayFail)
+		{
+			return new Dictionary<string, int>();
+		}
+
 		// 确保在 UI 线程上执行
 		if (lvServers.InvokeRequired)
 		{

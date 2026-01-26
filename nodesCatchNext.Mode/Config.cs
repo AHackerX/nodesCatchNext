@@ -87,6 +87,8 @@ public class Config
 
 	public bool recordTestTime { get; set; } = true;
 
+	public bool autoRemoveHttpsDelayFail { get; set; }
+
 	public int subUpdateMode { get; set; }
 
 	public int GetLocalPort(string protocol = "w")
