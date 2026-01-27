@@ -313,8 +313,10 @@ internal class ConfigHandler
 			}
 			else if (vmessItem.configType == 9)
 			{
-				config.vmess.Add(vmessItem);
-				num++;
+				if (AddSSRServer(ref config, vmessItem, -1) == 0)
+				{
+					num++;
+				}
 			}
 			else if (vmessItem.configType == 11 && AddHysteria2Server(ref config, vmessItem, -1) == 0)
 			{
@@ -328,43 +330,81 @@ internal class ConfigHandler
 		return num;
 	}
 
-	public static int AddVlessServer(ref Config config, VmessItem vmessItem, int index)
-	{
-		vmessItem.configVersion = 2;
-		vmessItem.configType = 5;
-		vmessItem.address = vmessItem.address.TrimEx();
-		vmessItem.id = vmessItem.id.TrimEx();
-		vmessItem.security = vmessItem.security.TrimEx();
-		vmessItem.network = vmessItem.network.TrimEx();
-		vmessItem.headerType = vmessItem.headerType.TrimEx();
-		vmessItem.requestHost = vmessItem.requestHost.TrimEx();
-		vmessItem.path = vmessItem.path.TrimEx();
-		vmessItem.streamSecurity = vmessItem.streamSecurity.TrimEx();
-		if (index >= 0)
+		public static int AddSSRServer(ref Config config, VmessItem vmessItem, int index)
 		{
-			config.vmess[index] = vmessItem;
-			if (config.index.Equals(index))
+			vmessItem.configVersion = 2;
+			vmessItem.configType = 9;
+			vmessItem.address = vmessItem.address.TrimEx();
+			vmessItem.id = vmessItem.id.TrimEx();
+			vmessItem.security = vmessItem.security.TrimEx();
+			vmessItem.network = vmessItem.network.TrimEx();
+			vmessItem.headerType = vmessItem.headerType.TrimEx();
+			// 设置默认值
+			if (Utils.IsNullOrEmpty(vmessItem.network))
 			{
-				Global.reloadV2ray = true;
+				vmessItem.network = "origin";
 			}
+			if (Utils.IsNullOrEmpty(vmessItem.headerType))
+			{
+				vmessItem.headerType = "plain";
+			}
+			if (index >= 0)
+			{
+				config.vmess[index] = vmessItem;
+				if (config.index.Equals(index))
+				{
+					Global.reloadV2ray = true;
+				}
+			}
+			else
+			{
+				config.vmess.Add(vmessItem);
+				if (config.vmess.Count == 1)
+				{
+					config.index = 0;
+					Global.reloadV2ray = true;
+				}
+			}
+			return 0;
 		}
-		else
-		{
-			if (Utils.IsNullOrEmpty(vmessItem.allowInsecure))
-			{
-				vmessItem.allowInsecure = config.defAllowInsecure.ToString();
-			}
-			config.vmess.Add(vmessItem);
-			if (config.vmess.Count == 1)
-			{
-				config.index = 0;
-				Global.reloadV2ray = true;
-			}
-		}
-		return 0;
-	}
 
-	public static int AddShadowsocksServer(ref Config config, VmessItem vmessItem, int index)
+		public static int AddVlessServer(ref Config config, VmessItem vmessItem, int index)
+		{
+			vmessItem.configVersion = 2;
+			vmessItem.configType = 5;
+			vmessItem.address = vmessItem.address.TrimEx();
+			vmessItem.id = vmessItem.id.TrimEx();
+			vmessItem.security = vmessItem.security.TrimEx();
+			vmessItem.network = vmessItem.network.TrimEx();
+			vmessItem.headerType = vmessItem.headerType.TrimEx();
+			vmessItem.requestHost = vmessItem.requestHost.TrimEx();
+			vmessItem.path = vmessItem.path.TrimEx();
+			vmessItem.streamSecurity = vmessItem.streamSecurity.TrimEx();
+			if (index >= 0)
+			{
+				config.vmess[index] = vmessItem;
+				if (config.index.Equals(index))
+				{
+					Global.reloadV2ray = true;
+				}
+			}
+			else
+			{
+				if (Utils.IsNullOrEmpty(vmessItem.allowInsecure))
+				{
+					vmessItem.allowInsecure = config.defAllowInsecure.ToString();
+				}
+				config.vmess.Add(vmessItem);
+				if (config.vmess.Count == 1)
+				{
+					config.index = 0;
+					Global.reloadV2ray = true;
+				}
+			}
+			return 0;
+		}
+
+		public static int AddShadowsocksServer(ref Config config, VmessItem vmessItem, int index)
 	{
 		vmessItem.configVersion = 2;
 		vmessItem.configType = 3;

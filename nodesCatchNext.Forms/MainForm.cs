@@ -1414,6 +1414,11 @@ public class MainForm : Form
 			{
 				throw new Exception("切换测速配置文件失败！" + text2);
 			}
+			// 检查 Mihomo 内核是否仍存活
+			if (!ConfigHandler.TcpClientCheck("127.0.0.1", int.Parse(config.externalController.Split(':')[1])))
+			{
+				throw new Exception("Mihomo内核加载配置后异常退出，可能存在不支持的节点格式");
+			}
 			ShowMsg("切换测速配置文件成功！");
 			text2 = ConfigHandler.sendReq(JsonConvert.SerializeObject(new
 			{

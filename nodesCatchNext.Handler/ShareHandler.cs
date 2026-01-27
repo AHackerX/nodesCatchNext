@@ -31,6 +31,8 @@ internal class ShareHandler
 				remarks2 = vmessItem.remarks;
 				vmessItem.remarks = remarks;
 			}
+			// 保存 requestHost 原始值（用于 SSR 类型）
+			string originalRequestHost = vmessItem.requestHost;
 			if (vmessItem.configType == 1)
 			{
 				result = Utils.ToJson(new VmessQRCode
@@ -65,7 +67,37 @@ internal class ShareHandler
 				result += $"@{vmessItem.address}:{vmessItem.port}";
 				if (!Utils.IsNullOrEmpty(vmessItem.network))
 				{
-					empty = "/?plugin=" + Utils.UrlEncode(vmessItem.network);
+					// 拼接完整的 plugin 参数
+					StringBuilder pluginBuilder = new StringBuilder();
+					pluginBuilder.Append(vmessItem.network);
+					if (vmessItem.network == "v2ray-plugin" && !Utils.IsNullOrEmpty(vmessItem.headerType))
+					{
+						pluginBuilder.Append(";mode=").Append(vmessItem.headerType);
+					}
+					else if (vmessItem.network == "obfs-local" && !Utils.IsNullOrEmpty(vmessItem.headerType))
+					{
+						pluginBuilder.Append(";obfs=").Append(vmessItem.headerType);
+					}
+					if (!Utils.IsNullOrEmpty(vmessItem.requestHost))
+					{
+						if (vmessItem.network == "v2ray-plugin")
+						{
+							pluginBuilder.Append(";host=").Append(vmessItem.requestHost);
+						}
+						else if (vmessItem.network == "obfs-local")
+						{
+							pluginBuilder.Append(";obfs-host=").Append(vmessItem.requestHost);
+						}
+					}
+					if (!Utils.IsNullOrEmpty(vmessItem.path))
+					{
+						pluginBuilder.Append(";path=").Append(vmessItem.path);
+					}
+					if (vmessItem.streamSecurity == "tls")
+					{
+						pluginBuilder.Append(";tls");
+					}
+					empty = "/?plugin=" + Utils.UrlEncode(pluginBuilder.ToString());
 					result = string.Format("{0}{1}{2}{3}", "ss://", result, empty, text);
 				}
 				else
@@ -75,15 +107,27 @@ internal class ShareHandler
 			}
 			else if (vmessItem.configType == 9)
 			{
-				if (Utils.IsNullOrEmpty(vmessItem.requestHost))
+				// 防御空值：如果 id 为空，跳过该节点
+				if (Utils.IsNullOrEmpty(vmessItem.id))
 				{
-					vmessItem.requestHost = "nodesCatchNext";
+					result = string.Empty;
 				}
-				// SSR 链接格式: address:port:protocol:method:obfs:base64(password)/?remarks=...&protoparam=...&obfsparam=...&group=...
-				// 字段映射: network=protocol, security=method(cipher), headerType=obfs
-				result = $"{vmessItem.address}:{vmessItem.port}:{vmessItem.network}:{vmessItem.security}:{vmessItem.headerType}:{Utils.Base64EncodeUrlSafe(vmessItem.id)}/?remarks={Utils.Base64EncodeUrlSafe(vmessItem.remarks)}&protoparam={Utils.Base64EncodeUrlSafe(vmessItem.streamSecurity)}&obfsparam={Utils.Base64EncodeUrlSafe(vmessItem.sni)}&group={Utils.Base64EncodeUrlSafe(vmessItem.requestHost)}";
-				result = Utils.Base64EncodeUrlSafe(result);
-				result = string.Format("{0}{1}", "ssr://", result);
+				else
+				{
+					if (Utils.IsNullOrEmpty(vmessItem.requestHost))
+					{
+						vmessItem.requestHost = "nodesCatchNext";
+					}
+					// SSR 链接格式: address:port:protocol:method:obfs:base64(password)/?remarks=...&protoparam=...&obfsparam=...&group=...
+					// 字段映射: network=protocol, security=method(cipher), headerType=obfs
+					// 防御空值：使用默认值
+					string network = Utils.IsNullOrEmpty(vmessItem.network) ? "origin" : vmessItem.network;
+					string security = Utils.IsNullOrEmpty(vmessItem.security) ? "none" : vmessItem.security;
+					string headerType = Utils.IsNullOrEmpty(vmessItem.headerType) ? "plain" : vmessItem.headerType;
+					result = $"{vmessItem.address}:{vmessItem.port}:{network}:{security}:{headerType}:{Utils.Base64EncodeUrlSafe(vmessItem.id)}/?remarks={Utils.Base64EncodeUrlSafe(vmessItem.remarks)}&protoparam={Utils.Base64EncodeUrlSafe(vmessItem.streamSecurity)}&obfsparam={Utils.Base64EncodeUrlSafe(vmessItem.sni)}&group={Utils.Base64EncodeUrlSafe(vmessItem.requestHost)}";
+					result = Utils.Base64EncodeUrlSafe(result);
+					result = string.Format("{0}{1}", "ssr://", result);
+				}
 			}
 			else if (vmessItem.configType == 4)
 			{
@@ -370,6 +414,7 @@ internal class ShareHandler
 			if (changRemark)
 			{
 				vmessItem.remarks = remarks2;
+				vmessItem.requestHost = originalRequestHost;
 			}
 			return result;
 		}
@@ -753,7 +798,49 @@ internal class ShareHandler
 		NameValueCollection nameValueCollection = HttpUtility.ParseQueryString(uri.Query);
 		if (nameValueCollection["plugin"] != null)
 		{
-			vmessItem.network = nameValueCollection["plugin"];
+			string plugin = Utils.UrlDecode(nameValueCollection["plugin"]);
+			string[] pluginParts = plugin.Split(';');
+			if (pluginParts.Length > 0)
+			{
+				vmessItem.network = pluginParts[0]; // 插件名称，如 "v2ray-plugin" 或 "obfs-local"
+				for (int i = 1; i < pluginParts.Length; i++)
+				{
+					string[] kv = pluginParts[i].Split(new char[] { '=' }, 2);
+					string key = kv[0].Trim();
+					string value = kv.Length > 1 ? kv[1] : "";
+					switch (key)
+					{
+						case "mode":
+							vmessItem.headerType = value; // v2ray-plugin 的 mode
+							break;
+						case "host":
+							vmessItem.requestHost = value;
+							break;
+						case "path":
+							vmessItem.path = value;
+							break;
+						case "tls":
+							vmessItem.streamSecurity = "tls";
+							break;
+						case "obfs":
+							vmessItem.headerType = value; // obfs-local 的 obfs 类型
+							break;
+						case "obfs-host":
+							vmessItem.requestHost = value;
+							break;
+					}
+				}
+				// v2ray-plugin 不带子参数时默认 mode 为 websocket
+				if (vmessItem.network == "v2ray-plugin" && Utils.IsNullOrEmpty(vmessItem.headerType))
+				{
+					vmessItem.headerType = "websocket";
+				}
+				// obfs-local 默认 obfs 为 http
+				if (vmessItem.network == "obfs-local" && Utils.IsNullOrEmpty(vmessItem.headerType))
+				{
+					vmessItem.headerType = "http";
+				}
+			}
 		}
 		return vmessItem;
 	}
