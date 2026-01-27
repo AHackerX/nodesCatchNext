@@ -1563,11 +1563,50 @@ public class MainForm : Form
 			return;
 		}
 		string text = clipboardData.Trim();
-		if ((text.StartsWith("http://") || text.StartsWith("https://")) && !text.Contains("vmess://") && !text.Contains("vless://") && !text.Contains("ss://") && !text.Contains("ssr://") && !text.Contains("trojan://") && !text.Contains("hysteria2://") && !text.Contains("hy2://") && !text.Contains("anytls://"))
+		// 检测是否包含订阅链接和节点链接
+		List<string> subscriptionUrls = ExtractSubscriptionUrls(text);
+		string nodeLinks = ExtractNodeLinks(text);
+		// 如果只有订阅链接（无节点链接）
+		if (subscriptionUrls.Count > 0 && string.IsNullOrWhiteSpace(nodeLinks))
 		{
-			ImportFromSubscriptionUrl(text);
+			if (subscriptionUrls.Count == 1)
+			{
+				ImportFromSubscriptionUrl(subscriptionUrls[0]);
+			}
+			else
+			{
+				// 多个订阅链接，弹出确认对话框
+				DialogResult result = MessageBox.Show(
+					$"检测到剪贴板中有 {subscriptionUrls.Count} 个订阅链接，是否全部导入？\n\n" +
+					string.Join("\n", subscriptionUrls.Select((url, i) => $"{i + 1}. {(url.Length > 60 ? url.Substring(0, 60) + "..." : url)}")),
+					"批量导入订阅",
+					MessageBoxButtons.YesNo,
+					MessageBoxIcon.Question);
+				if (result == DialogResult.Yes)
+				{
+					ImportFromMultipleSubscriptionUrls(subscriptionUrls);
+				}
+			}
 			return;
 		}
+		// 如果同时包含订阅链接和节点链接（混合内容）
+		if (subscriptionUrls.Count > 0 && !string.IsNullOrWhiteSpace(nodeLinks))
+		{
+			DialogResult result = MessageBox.Show(
+				$"检测到剪贴板中包含混合内容：\n\n" +
+				$"• 订阅链接: {subscriptionUrls.Count} 个\n" +
+				$"• 节点链接: 已检测到\n\n" +
+				$"是否全部导入？（先导入订阅，再导入节点）",
+				"混合内容导入",
+				MessageBoxButtons.YesNo,
+				MessageBoxIcon.Question);
+			if (result == DialogResult.Yes)
+			{
+				await ImportMixedContentAsync(subscriptionUrls, nodeLinks);
+			}
+			return;
+		}
+		// 只有节点链接（无订阅），走原有逻辑
 		AppendText(notify: false, "正在处理节点...");
 		int num = await Task.Run(() => MainFormHandler.Instance.AddBatchServers(config, clipboardData));
 		if (num > 0)
@@ -1579,6 +1618,212 @@ public class MainForm : Form
 		{
 			AppendText(notify: false, "没有导入任何节点");
 		}
+	}
+
+	/// <summary>
+	/// 从文本中提取订阅链接（排除节点分享链接）
+	/// </summary>
+	private List<string> ExtractSubscriptionUrls(string text)
+	{
+		List<string> urls = new List<string>();
+		// 节点协议前缀
+		string[] nodeProtocols = { "vmess://", "vless://", "ss://", "ssr://", "trojan://", "hysteria2://", "hy2://", "anytls://", "socks://" };
+		// 按行分割
+		string[] lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+		foreach (string line in lines)
+		{
+			string trimmedLine = line.Trim();
+			// 检查是否是 http/https 链接
+			if ((trimmedLine.StartsWith("http://") || trimmedLine.StartsWith("https://")))
+			{
+				// 排除包含节点协议的链接（可能是混合内容）
+				bool containsNodeProtocol = nodeProtocols.Any(p => trimmedLine.Contains(p));
+				if (!containsNodeProtocol)
+				{
+					urls.Add(trimmedLine);
+				}
+			}
+		}
+		return urls;
+	}
+
+	/// <summary>
+	/// 从文本中提取节点链接（排除订阅链接）
+	/// </summary>
+	private string ExtractNodeLinks(string text)
+	{
+		string[] nodeProtocols = { "vmess://", "vless://", "ss://", "ssr://", "trojan://", "hysteria2://", "hy2://", "anytls://", "socks://" };
+		List<string> nodeLines = new List<string>();
+		string[] lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+		foreach (string line in lines)
+		{
+			string trimmedLine = line.Trim();
+			// 检查是否以节点协议开头
+			if (nodeProtocols.Any(p => trimmedLine.StartsWith(p)))
+			{
+				nodeLines.Add(trimmedLine);
+			}
+		}
+		return string.Join("\n", nodeLines);
+	}
+
+	/// <summary>
+	/// 导入混合内容（订阅+节点）
+	/// </summary>
+	private async Task ImportMixedContentAsync(List<string> subscriptionUrls, string nodeLinks)
+	{
+		int totalNodes = 0;
+		int subSuccessCount = 0;
+		int subFailCount = 0;
+		AppendText(notify: false, $"开始导入混合内容...");
+		// 先导入订阅
+		AppendText(notify: false, $"\n--- 导入订阅链接 ({subscriptionUrls.Count} 个) ---");
+		for (int i = 0; i < subscriptionUrls.Count; i++)
+		{
+			string url = subscriptionUrls[i];
+			AppendText(notify: false, $"[{i + 1}/{subscriptionUrls.Count}] 正在处理: {(url.Length > 60 ? url.Substring(0, 60) + "..." : url)}");
+			try
+			{
+				int nodesBefore = config.vmess?.Count ?? 0;
+				bool success = await ImportFromSubscriptionUrlAsync(url);
+				if (success)
+				{
+					int nodesAdded = (config.vmess?.Count ?? 0) - nodesBefore;
+					totalNodes += nodesAdded;
+					subSuccessCount++;
+					AppendText(notify: false, $"--> 成功导入 {nodesAdded} 个节点");
+				}
+				else
+				{
+					subFailCount++;
+					AppendText(notify: false, "--> 导入失败");
+				}
+			}
+			catch (Exception ex)
+			{
+				subFailCount++;
+				AppendText(notify: false, $"--> 导入异常: {ex.Message}");
+			}
+		}
+		// 再导入节点链接
+		AppendText(notify: false, $"\n--- 导入节点链接 ---");
+		int nodeCountBefore = config.vmess?.Count ?? 0;
+		int directNodes = await Task.Run(() => MainFormHandler.Instance.AddBatchServers(config, nodeLinks));
+		if (directNodes > 0)
+		{
+			totalNodes += directNodes;
+			AppendText(notify: false, $"--> 成功导入 {directNodes} 个节点");
+		}
+		else
+		{
+			AppendText(notify: false, "--> 没有导入任何节点");
+		}
+		// 汇总
+		AppendText(notify: false, $"\n混合内容导入完成！\n订阅: 成功 {subSuccessCount}, 失败 {subFailCount}\n节点: {directNodes} 个\n共导入 {totalNodes} 个节点");
+		if (totalNodes > 0)
+		{
+			InitSubscriptionTabs();
+			RefreshServersView();
+			ShowMsg($"混合内容导入完成\n订阅: 成功 {subSuccessCount}, 失败 {subFailCount}\n节点链接: {directNodes} 个\n共导入 {totalNodes} 个节点");
+		}
+		else
+		{
+			ShowMsg("混合内容导入完成，但没有成功导入任何节点");
+		}
+	}
+
+	/// <summary>
+	/// 批量导入多个订阅链接
+	/// </summary>
+	private async void ImportFromMultipleSubscriptionUrls(List<string> urls)
+	{
+		int totalNodes = 0;
+		int successCount = 0;
+		int failCount = 0;
+		int nodeCountBefore = config.vmess?.Count ?? 0;
+		AppendText(notify: false, $"开始批量导入 {urls.Count} 个订阅...");
+		for (int i = 0; i < urls.Count; i++)
+		{
+			string url = urls[i];
+			AppendText(notify: false, $"\n[{i + 1}/{urls.Count}] 正在处理: {(url.Length > 80 ? url.Substring(0, 80) + "..." : url)}");
+			try
+			{
+				int nodesBefore = config.vmess?.Count ?? 0;
+				bool success = await ImportFromSubscriptionUrlAsync(url);
+				if (success)
+				{
+					int nodesAdded = (config.vmess?.Count ?? 0) - nodesBefore;
+					totalNodes += nodesAdded;
+					successCount++;
+					AppendText(notify: false, $"--> 成功导入 {nodesAdded} 个节点");
+				}
+				else
+				{
+					failCount++;
+					AppendText(notify: false, "--> 导入失败");
+				}
+			}
+			catch (Exception ex)
+			{
+				failCount++;
+				AppendText(notify: false, $"--> 导入异常: {ex.Message}");
+			}
+		}
+		AppendText(notify: false, $"\n批量导入完成！成功: {successCount}, 失败: {failCount}, 共导入 {totalNodes} 个节点");
+		if (totalNodes > 0)
+		{
+			InitSubscriptionTabs();
+			RefreshServersView();
+			ShowMsg($"批量导入完成\n成功: {successCount} 个订阅\n失败: {failCount} 个订阅\n共导入 {totalNodes} 个节点");
+		}
+		else
+		{
+			ShowMsg($"批量导入完成，但没有成功导入任何节点\n失败: {failCount} 个订阅");
+		}
+	}
+
+	/// <summary>
+	/// 异步导入单个订阅链接
+	/// </summary>
+	private Task<bool> ImportFromSubscriptionUrlAsync(string url)
+	{
+		TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
+		DownloadHandle downloadHandle = new DownloadHandle();
+		downloadHandle.Error += delegate(object obj, ErrorEventArgs args)
+		{
+			AppendText(notify: false, "--> 下载失败：" + args.GetException().Message);
+			tcs.TrySetResult(false);
+		};
+		downloadHandle.UpdateCompleted += delegate(object obj, DownloadHandle.ResultEventArgs args)
+		{
+			if (args.Success)
+			{
+				string decoded = Utils.Base64Decode(args.Msg);
+				string content = !Utils.IsNullOrEmpty(decoded) ? decoded : args.Msg;
+				if (MainFormHandler.Instance.AddBatchServers(config, content) > 0)
+				{
+					tcs.TrySetResult(true);
+				}
+				else
+				{
+					// 如果解码后导入失败，尝试原始内容
+					if (!Utils.IsNullOrEmpty(decoded) && MainFormHandler.Instance.AddBatchServers(config, args.Msg) > 0)
+					{
+						tcs.TrySetResult(true);
+					}
+					else
+					{
+						tcs.TrySetResult(false);
+					}
+				}
+			}
+			else
+			{
+				tcs.TrySetResult(false);
+			}
+		};
+		downloadHandle.WebDownloadString(url);
+		return tcs.Task;
 	}
 
 	private void ImportFromSubscriptionUrl(string url)
