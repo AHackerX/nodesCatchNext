@@ -667,9 +667,9 @@ internal class ShareHandler
 				Uri uri = new Uri(text);
 				vmessItem.address = uri.IdnHost;
 				vmessItem.port = uri.Port;
-				vmessItem.id = uri.UserInfo;
+				vmessItem.id = Utils.UrlDecode(uri.UserInfo);
 				NameValueCollection nameValueCollection = HttpUtility.ParseQueryString(uri.Query);
-				vmessItem.sni = nameValueCollection["sni"] ?? "";
+				vmessItem.sni = Utils.UrlDecode(nameValueCollection["sni"] ?? "");
 				if (nameValueCollection["allowInsecure"] != null)
 				{
 					if (nameValueCollection["allowInsecure"] == "0")
@@ -807,7 +807,7 @@ internal class ShareHandler
 				{
 					string[] kv = pluginParts[i].Split(new char[] { '=' }, 2);
 					string key = kv[0].Trim();
-					string value = kv.Length > 1 ? kv[1] : "";
+					string value = kv.Length > 1 ? kv[1].Trim() : "";
 					switch (key)
 					{
 						case "mode":
@@ -1018,12 +1018,12 @@ internal class ShareHandler
 		vmessItem.address = uri.IdnHost;
 		vmessItem.port = uri.Port;
 		vmessItem.remarks = uri.GetComponents(UriComponents.Fragment, UriFormat.Unescaped);
-		vmessItem.id = uri.UserInfo;
+		vmessItem.id = Utils.UrlDecode(uri.UserInfo);
 		NameValueCollection nameValueCollection = HttpUtility.ParseQueryString(uri.Query);
 		vmessItem.flow = nameValueCollection["flow"] ?? "";
 		vmessItem.security = nameValueCollection["encryption"] ?? "none";
 		vmessItem.streamSecurity = nameValueCollection["security"] ?? "";
-		vmessItem.sni = nameValueCollection["sni"] ?? "";
+		vmessItem.sni = Utils.UrlDecode(nameValueCollection["sni"] ?? "");
 		vmessItem.network = nameValueCollection["type"] ?? "tcp";
 		vmessItem.publicKey = Utils.UrlDecode(nameValueCollection["pbk"] ?? nameValueCollection["publicKey"] ?? "");
 		vmessItem.shortId = Utils.UrlDecode(nameValueCollection["sid"] ?? nameValueCollection["shortId"] ?? "");
