@@ -2459,6 +2459,23 @@ public class MainForm : Form
 					SortListView();
 				});
 			}
+			// 使用专门的方法删除下载测速失败的节点（只删除 speedtestNodeMap 中的节点）
+			Dictionary<string, int> dictionaryDownloadFailed = RemoveDownloadTestFailedServers();
+			int numDownloadFailed = dictionaryDownloadFailed.Values.Sum();
+			if (numDownloadFailed > 0)
+			{
+				AppendText(notify: false, $"移除下载测速失败的节点：共 {numDownloadFailed} 个");
+				foreach (KeyValuePair<string, int> itemDownloadFailed in dictionaryDownloadFailed)
+				{
+					AppendText(notify: false, $"  - {itemDownloadFailed.Key}：{itemDownloadFailed.Value} 个");
+				}
+			}
+			else
+			{
+				AppendText(notify: false, "移除下载测速失败的节点：0 个");
+			}
+			RefreshServers();
+			Thread.Sleep(200);
 		}
 		if (!token.IsCancellationRequested)
 		{
