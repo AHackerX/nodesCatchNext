@@ -3016,6 +3016,7 @@ public class MainForm : Form
 			else
 			{
 				// 非严格模式：HTTPS延迟失败 且 下载测速也失败才删除
+				// 但如果下载测速明确失败（有错误信息），也应该删除
 				if (httpsDelayFailed && testResultFailed)
 				{
 					text = "HTTPS延迟和平均速度 均测试失败";
@@ -3025,10 +3026,10 @@ public class MainForm : Form
 					// HTTPS失败但下载测速未进行，视为失败
 					text = "HTTPS延迟 测试失败";
 				}
-				else if (httpsDelayPending && testResultFailed)
+				else if (testResultFailed)
 				{
-					// HTTPS未测试但下载测速失败，视为失败
-					text = ((!text4.Contains("超时") && !text4.Contains("Timeout")) ? ((!text4.Contains("连接失败") && !text4.Contains("无法连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
+					// 下载测速失败（无论 HTTPS 延迟是否成功）
+					text = ((!text4.Contains("超时") && !text4.Contains("Timeout")) ? ((!text4.Contains("连接失败") && !text4.Contains("无法连接") && !text4.Contains("基础连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
 				}
 				else if (testResultAborted)
 				{
@@ -3223,6 +3224,7 @@ public class MainForm : Form
 			else
 			{
 				// 非严格模式：HTTPS延迟失败 且 下载测速也失败才删除
+				// 但如果下载测速明确失败（有错误信息），也应该删除
 				if (httpsDelayFailed && testResultFailed)
 				{
 					text = "HTTPS延迟和平均速度 均测试失败";
@@ -3232,10 +3234,10 @@ public class MainForm : Form
 					// HTTPS失败但下载测速未进行，视为失败
 					text = "HTTPS延迟 测试失败";
 				}
-				else if (httpsDelayPending && testResultFailed)
+				else if (testResultFailed)
 				{
-					// HTTPS未测试但下载测速失败，视为失败
-					text = ((!testResult.Contains("超时") && !testResult.Contains("Timeout")) ? ((!testResult.Contains("连接失败") && !testResult.Contains("无法连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
+					// 下载测速失败（无论 HTTPS 延迟是否成功）
+					text = ((!testResult.Contains("超时") && !testResult.Contains("Timeout")) ? ((!testResult.Contains("连接失败") && !testResult.Contains("无法连接") && !testResult.Contains("基础连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
 				}
 				else if (testResultAborted)
 				{
