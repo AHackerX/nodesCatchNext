@@ -3010,7 +3010,7 @@ public class MainForm : Form
 				}
 				else if (testResultFailed)
 				{
-					text = ((!text4.Contains("超时") && !text4.Contains("Timeout")) ? ((!text4.Contains("连接失败") && !text4.Contains("无法连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
+					text = ((!text4.Contains("超时") && !text4.Contains("Timeout")) ? ((!text4.Contains("连接失败") && !text4.Contains("无法连接") && !text4.Contains("基础连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
 				}
 			}
 			else
@@ -3099,7 +3099,8 @@ public class MainForm : Form
 			if (currentItem.address != vmessItem.address || currentItem.port != vmessItem.port)
 				continue;
 			
-			string httpsDelay = vmessItem.httpsDelay ?? "";
+			// 使用 currentItem 获取最新的测试结果
+			string httpsDelay = currentItem.httpsDelay ?? "";
 			
 			// 检查是否为等待/测试中状态
 			bool httpsDelayPending = string.IsNullOrEmpty(httpsDelay) || httpsDelay == "测速被取消" || httpsDelay == "等待测速线程..." || httpsDelay == "正在测速...";
@@ -3193,8 +3194,9 @@ public class MainForm : Form
 			if (currentItem.address != vmessItem.address || currentItem.port != vmessItem.port)
 				continue;
 			
-			string httpsDelay = vmessItem.httpsDelay ?? "";
-			string testResult = vmessItem.testResult ?? "";
+			// 使用 currentItem 获取最新的测试结果
+			string httpsDelay = currentItem.httpsDelay ?? "";
+			string testResult = currentItem.testResult ?? "";
 			
 			// 检查是否为等待/测试中状态
 			bool httpsDelayPending = string.IsNullOrEmpty(httpsDelay) || httpsDelay == "测速被取消" || httpsDelay == "等待测速线程..." || httpsDelay == "正在测速...";
@@ -3218,7 +3220,7 @@ public class MainForm : Form
 				}
 				else if (testResultFailed)
 				{
-					text = ((!testResult.Contains("超时") && !testResult.Contains("Timeout")) ? ((!testResult.Contains("连接失败") && !testResult.Contains("无法连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
+					text = ((!testResult.Contains("超时") && !testResult.Contains("Timeout")) ? ((!testResult.Contains("连接失败") && !testResult.Contains("无法连接") && !testResult.Contains("基础连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
 				}
 			}
 			else
