@@ -18,6 +18,14 @@ internal class Utils
 {
 	private static readonly string[] TunKeywords = new string[6] { "wintun", "tun", "tap", "wireguard", "clash", "warp" };
 
+	// Windows 内置隧道适配器排除列表（这些不是代理 TUN）
+	private static readonly string[] SystemTunnelExclusions = new string[]
+	{
+		"teredo",           // Microsoft Teredo Tunneling Adapter
+		"isatap",           // ISATAP 适配器
+		"6to4"              // 6to4 适配器
+	};
+
 	public static bool TryDetectTunAdapter(out string adapterDisplayName)
 	{
 		adapterDisplayName = string.Empty;
@@ -33,17 +41,33 @@ internal class Utils
 				string text = networkInterface.Description ?? string.Empty;
 				string text2 = networkInterface.Name ?? string.Empty;
 				string text3 = ((string.IsNullOrWhiteSpace(text2) || string.IsNullOrWhiteSpace(text)) ? (text2 + text).Trim() : (text2 + " (" + text + ")"));
+
+				// 检查是否为系统内置隧道（需要排除）
+				string descLower = text.ToLowerInvariant();
+				string nameLower = text2.ToLowerInvariant();
+				bool isSystemTunnel = false;
+				foreach (string exclusion in SystemTunnelExclusions)
+				{
+					if (descLower.Contains(exclusion) || nameLower.Contains(exclusion))
+					{
+						isSystemTunnel = true;
+						break;
+					}
+				}
+				if (isSystemTunnel)
+				{
+					continue;
+				}
+
 				if (networkInterface.NetworkInterfaceType == NetworkInterfaceType.Tunnel)
 				{
 					adapterDisplayName = text3;
 					return true;
 				}
-				string text4 = text.ToLowerInvariant();
-				string text5 = text2.ToLowerInvariant();
 				string[] tunKeywords = TunKeywords;
 				foreach (string value in tunKeywords)
 				{
-					if ((!string.IsNullOrEmpty(text4) && text4.Contains(value)) || (!string.IsNullOrEmpty(text5) && text5.Contains(value)))
+					if ((!string.IsNullOrEmpty(descLower) && descLower.Contains(value)) || (!string.IsNullOrEmpty(nameLower) && nameLower.Contains(value)))
 					{
 						adapterDisplayName = text3;
 						return true;
