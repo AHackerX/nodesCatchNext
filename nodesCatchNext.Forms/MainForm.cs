@@ -1320,18 +1320,49 @@ public class MainForm : Form
 				throw new Exception("无法链接到subconverter(端口:25500)，请确认：\n1. subconverter\\subconverter.exe 文件是否存在\n2. 端口 25500 是否被占用\n3. 尝试重新打开测速软件");
 			}
 			StringBuilder stringBuilder = new StringBuilder();
-			List<VmessItem> list = new List<VmessItem>();
-			List<string> list2 = new List<string>();
+			List<VmessItem> listAnyTLS = new List<VmessItem>();
+			List<string> listAnyTLSNames = new List<string>();
+			List<VmessItem> listVlessReality = new List<VmessItem>();
+			List<string> listVlessRealityNames = new List<string>();
 			foreach (int lvSelected in lvSelecteds)
 			{
 				if (lvSelected >= 0 && lvSelected < config.vmess.Count)
 				{
 					VmessItem vmessItem = config.vmess[lvSelected];
+					// AnyTLS 节点直接生成 YAML
 					if (vmessItem.configType == 12)
 					{
 						string item = (config.GetLocalPort() + lvSelected).ToString();
-						list.Add(vmessItem);
-						list2.Add(item);
+						listAnyTLS.Add(vmessItem);
+						listAnyTLSNames.Add(item);
+						continue;
+					}
+					// VLESS Reality 节点直接生成 YAML（绕过 subconverter）
+					// 检测条件：configType == 5 (VLESS) 且 streamSecurity == "reality" 且 publicKey 非空 且 shortId 非空
+					// Mihomo 要求 short-id 必须有效，不能为空
+					bool isVlessReality = vmessItem.configType == 5 && 
+						vmessItem.streamSecurity == "reality" && 
+						!string.IsNullOrEmpty(vmessItem.publicKey) &&
+						!string.IsNullOrEmpty(vmessItem.shortId);
+					
+					// 检测是否为有问题的 Reality 节点（有 publicKey 但没有 shortId）
+					// 这类节点不能发送给 subconverter，否则会生成无效的配置
+					bool isBrokenReality = vmessItem.configType == 5 && 
+						vmessItem.streamSecurity == "reality" && 
+						!string.IsNullOrEmpty(vmessItem.publicKey) &&
+						string.IsNullOrEmpty(vmessItem.shortId);
+					
+					if (isVlessReality)
+					{
+						string item = (config.GetLocalPort() + lvSelected).ToString();
+						listVlessReality.Add(vmessItem);
+						listVlessRealityNames.Add(item);
+						continue;
+					}
+					
+					// 跳过有问题的 Reality 节点（不发送给 subconverter）
+					if (isBrokenReality)
+					{
 						continue;
 					}
 				}
@@ -1359,14 +1390,15 @@ public class MainForm : Form
 			{
 				text4 = "mixed-port: 40000\r\nmode: Global\r\nlog-level: info\r\nexternal-controller: 127.0.0.1:" + externalControllerPort + "\r\nproxies:\r\nproxy-groups:\r\n  - name: PROXY\r\n    type: select\r\n    proxies:\r\nrules:\r\n  - MATCH,PROXY\r\n";
 			}
-			if (list.Count > 0)
+			// 生成 AnyTLS 节点的 YAML 配置
+			if (listAnyTLS.Count > 0)
 			{
 				StringBuilder stringBuilder2 = new StringBuilder();
 				StringBuilder stringBuilder3 = new StringBuilder();
-				for (int i = 0; i < list.Count; i++)
+				for (int i = 0; i < listAnyTLS.Count; i++)
 				{
-					VmessItem vmessItem2 = list[i];
-					string text5 = list2[i];
+					VmessItem vmessItem2 = listAnyTLS[i];
+					string text5 = listAnyTLSNames[i];
 					bool flag = vmessItem2.allowInsecure == "true" || vmessItem2.allowInsecure == "1";
 					stringBuilder2.AppendLine("  - name: \"" + text5 + "\"");
 					stringBuilder2.AppendLine("    type: anytls");
@@ -1398,12 +1430,98 @@ public class MainForm : Form
 					}
 				}
 			}
-			if (string.IsNullOrEmpty(text4) || (!text4.Contains("proxies:") && list.Count == 0))
+			// 生成 VLESS Reality 节点的 YAML 配置
+			if (listVlessReality.Count > 0)
+			{
+				StringBuilder sbVlessProxies = new StringBuilder();
+				StringBuilder sbVlessProxyNames = new StringBuilder();
+				for (int i = 0; i < listVlessReality.Count; i++)
+				{
+					VmessItem item = listVlessReality[i];
+					string proxyName = listVlessRealityNames[i];
+					bool skipCertVerify = item.allowInsecure == "true" || item.allowInsecure == "1";
+					
+					sbVlessProxies.AppendLine("  - name: \"" + proxyName + "\"");
+					sbVlessProxies.AppendLine("    type: vless");
+					sbVlessProxies.AppendLine("    server: " + item.address);
+					sbVlessProxies.AppendLine($"    port: {item.port}");
+					sbVlessProxies.AppendLine("    uuid: \"" + item.id + "\"");
+					sbVlessProxies.AppendLine("    network: " + (string.IsNullOrEmpty(item.network) ? "tcp" : item.network));
+					sbVlessProxies.AppendLine("    tls: true");
+					sbVlessProxies.AppendLine("    udp: true");
+					
+					// flow (xtls-rprx-vision)
+					if (!string.IsNullOrEmpty(item.flow))
+					{
+						sbVlessProxies.AppendLine("    flow: " + item.flow);
+					}
+					
+					// client-fingerprint
+					string fingerprint = string.IsNullOrEmpty(item.fingerprint) ? "chrome" : item.fingerprint;
+					sbVlessProxies.AppendLine("    client-fingerprint: " + fingerprint);
+					
+					// servername (SNI)
+					if (!string.IsNullOrEmpty(item.sni))
+					{
+						sbVlessProxies.AppendLine("    servername: " + item.sni);
+					}
+					
+					sbVlessProxies.AppendLine("    skip-cert-verify: " + skipCertVerify.ToString().ToLower());
+					
+					// Reality 配置
+					sbVlessProxies.AppendLine("    reality-opts:");
+					if (!string.IsNullOrEmpty(item.publicKey))
+					{
+						sbVlessProxies.AppendLine("      public-key: " + item.publicKey);
+					}
+					// short-id 只在非空时输出（Mihomo 不接受空的 short-id）
+					// 必须用引号包裹，否则 YAML 会把 "01" 解析为数字 1
+					if (!string.IsNullOrEmpty(item.shortId))
+					{
+						sbVlessProxies.AppendLine("      short-id: \"" + item.shortId + "\"");
+					}
+					
+					sbVlessProxyNames.AppendLine("      - \"" + proxyName + "\"");
+				}
+				
+				int num = text4.IndexOf("proxies:");
+				if (num >= 0)
+				{
+					int startIndex = text4.IndexOf("\n", num) + 1;
+					text4 = text4.Insert(startIndex, sbVlessProxies.ToString());
+				}
+				int num2 = text4.IndexOf("proxy-groups:");
+				if (num2 >= 0)
+				{
+					int num3 = text4.IndexOf("proxies:", num2);
+					if (num3 >= 0)
+					{
+						int startIndex2 = text4.IndexOf("\n", num3) + 1;
+						text4 = text4.Insert(startIndex2, sbVlessProxyNames.ToString());
+					}
+				}
+			}
+			int totalNativeNodes = listAnyTLS.Count + listVlessReality.Count;
+			if (string.IsNullOrEmpty(text4) || (!text4.Contains("proxies:") && totalNativeNodes == 0))
 			{
 				throw new Exception("没有可用测速节点");
 			}
 			File.WriteAllText(path2, text4, Encoding.UTF8);
-			ShowMsg($"Mihomo配置文件生成成功（含 {list.Count} 个 AnyTLS 节点）");
+			string nativeNodeInfo = "";
+			if (listAnyTLS.Count > 0) nativeNodeInfo += $"{listAnyTLS.Count} 个 AnyTLS";
+			if (listVlessReality.Count > 0)
+			{
+				if (nativeNodeInfo.Length > 0) nativeNodeInfo += ", ";
+				nativeNodeInfo += $"{listVlessReality.Count} 个 VLESS Reality";
+			}
+			if (nativeNodeInfo.Length > 0)
+			{
+				ShowMsg($"Mihomo配置文件生成成功（含 {nativeNodeInfo} 节点）");
+			}
+			else
+			{
+				ShowMsg("Mihomo配置文件生成成功");
+			}
 			string args = JsonConvert.SerializeObject(new
 			{
 				path = Path.GetFullPath(path2).Replace("\\", "/")
@@ -3588,8 +3706,30 @@ public class MainForm : Form
 			return;
 		}
 		StringBuilder stringBuilder = new StringBuilder();
+		List<VmessItem> listVlessReality = new List<VmessItem>();
+		List<VmessItem> listAnyTLS = new List<VmessItem>();
 		foreach (int lvSelected in lvSelecteds)
 		{
+			if (lvSelected >= 0 && lvSelected < config.vmess.Count)
+			{
+				VmessItem vmessItem = config.vmess[lvSelected];
+				// VLESS Reality 节点单独处理
+				bool isVlessReality = vmessItem.configType == 5 && 
+					(vmessItem.streamSecurity == "reality" || 
+					 !string.IsNullOrEmpty(vmessItem.publicKey) || 
+					 !string.IsNullOrEmpty(vmessItem.shortId));
+				if (isVlessReality)
+				{
+					listVlessReality.Add(vmessItem);
+					continue;
+				}
+				// AnyTLS 节点单独处理
+				if (vmessItem.configType == 12)
+				{
+					listAnyTLS.Add(vmessItem);
+					continue;
+				}
+			}
 			string shareUrl = ShareHandler.GetShareUrl(config, lvSelected);
 			if (!Utils.IsNullOrEmpty(shareUrl))
 			{
@@ -3597,7 +3737,7 @@ public class MainForm : Form
 				stringBuilder.AppendLine();
 			}
 		}
-		if (stringBuilder.Length <= 0)
+		if (stringBuilder.Length <= 0 && listVlessReality.Count == 0 && listAnyTLS.Count == 0)
 		{
 			return;
 		}
@@ -3605,10 +3745,16 @@ public class MainForm : Form
 		string path = Utils.GetPath("subconverter\\temp_" + text + ".txt");
 		try
 		{
-			stringBuilder.Insert(0, "ss://YWVzLTI1Ni1nY206ZmFCQW9ENTRrODdVSkc3QDEuMS4xLjE6NjY2#%e5%8d%a0%e4%bd%8d%e8%8a%82%e7%82%b9" + Environment.NewLine);
 			string path2 = Utils.ShowSaveFileDialog("Mihomo配置文件（*.yaml）|*.yaml");
-			if (!Utils.IsNullOrEmpty(path2))
+			if (Utils.IsNullOrEmpty(path2))
 			{
+				return;
+			}
+			
+			string yamlContent = "";
+			if (stringBuilder.Length > 0)
+			{
+				stringBuilder.Insert(0, "ss://YWVzLTI1Ni1nY206ZmFCQW9ENTRrODdVSkc3QDEuMS4xLjE6NjY2#%e5%8d%a0%e4%bd%8d%e8%8a%82%e7%82%b9" + Environment.NewLine);
 				File.WriteAllText(path, Utils.Base64Encode(stringBuilder.ToString()), Encoding.UTF8);
 				HttpWebRequest obj = (HttpWebRequest)WebRequest.Create($"http://127.0.0.1:{25500}/sub?target=clash&url=temp_{text}.txt&insert=false");
 				obj.Method = "GET";
@@ -3616,11 +3762,27 @@ public class MainForm : Form
 				obj.ReadWriteTimeout = 10000;
 				obj.ContinueTimeout = 10000;
 				using StreamReader streamReader = new StreamReader(obj.GetResponse().GetResponseStream(), Encoding.UTF8);
-				string contents = streamReader.ReadToEnd();
-				File.WriteAllText(path2, contents, Encoding.UTF8);
-				AppendText(notify: false, "保存文件成功");
-				return;
+				yamlContent = streamReader.ReadToEnd();
 			}
+			else
+			{
+				yamlContent = "mixed-port: 7890\r\nmode: Global\r\nlog-level: info\r\nexternal-controller: 127.0.0.1:9090\r\nproxies:\r\nproxy-groups:\r\n  - name: PROXY\r\n    type: select\r\n    proxies:\r\nrules:\r\n  - MATCH,PROXY\r\n";
+			}
+			
+			// 插入 VLESS Reality 节点
+			if (listVlessReality.Count > 0)
+			{
+				yamlContent = InsertVlessRealityToYaml(yamlContent, listVlessReality);
+			}
+			
+			// 插入 AnyTLS 节点
+			if (listAnyTLS.Count > 0)
+			{
+				yamlContent = InsertAnyTLSToYaml(yamlContent, listAnyTLS);
+			}
+			
+			File.WriteAllText(path2, yamlContent, Encoding.UTF8);
+			AppendText(notify: false, "保存文件成功");
 		}
 		catch (Exception ex)
 		{
@@ -3655,8 +3817,30 @@ public class MainForm : Form
 			return;
 		}
 		StringBuilder stringBuilder = new StringBuilder();
+		List<VmessItem> listVlessReality = new List<VmessItem>();
+		List<VmessItem> listAnyTLS = new List<VmessItem>();
 		foreach (int lvSelected in lvSelecteds)
 		{
+			if (lvSelected >= 0 && lvSelected < config.vmess.Count)
+			{
+				VmessItem vmessItem = config.vmess[lvSelected];
+				// VLESS Reality 节点单独处理
+				bool isVlessReality = vmessItem.configType == 5 && 
+					(vmessItem.streamSecurity == "reality" || 
+					 !string.IsNullOrEmpty(vmessItem.publicKey) || 
+					 !string.IsNullOrEmpty(vmessItem.shortId));
+				if (isVlessReality)
+				{
+					listVlessReality.Add(vmessItem);
+					continue;
+				}
+				// AnyTLS 节点单独处理
+				if (vmessItem.configType == 12)
+				{
+					listAnyTLS.Add(vmessItem);
+					continue;
+				}
+			}
 			string shareUrl = ShareHandler.GetShareUrl(config, lvSelected);
 			if (!Utils.IsNullOrEmpty(shareUrl))
 			{
@@ -3664,7 +3848,7 @@ public class MainForm : Form
 				stringBuilder.AppendLine();
 			}
 		}
-		if (stringBuilder.Length <= 0)
+		if (stringBuilder.Length <= 0 && listVlessReality.Count == 0 && listAnyTLS.Count == 0)
 		{
 			return;
 		}
@@ -3672,20 +3856,43 @@ public class MainForm : Form
 		string path = Utils.GetPath("subconverter\\temp_" + text + ".txt");
 		try
 		{
-			stringBuilder.Insert(0, "ss://YWVzLTI1Ni1nY206ZmFCQW9ENTRrODdVSkc3QDEuMS4xLjE6NjY2#%e5%8d%a0%e4%bd%8d%e8%8a%82%e7%82%b9" + Environment.NewLine);
 			string path2 = Utils.GetPath("config\\temp.yaml");
-			File.WriteAllText(path, Utils.Base64Encode(stringBuilder.ToString()), Encoding.UTF8);
-			HttpWebRequest obj = (HttpWebRequest)WebRequest.Create($"http://127.0.0.1:{25500}/sub?target=clash&url=temp_{text}.txt&insert=false");
-			obj.Method = "GET";
-			obj.Timeout = 10000;
-			obj.ReadWriteTimeout = 10000;
-			obj.ContinueTimeout = 10000;
-			using (StreamReader streamReader = new StreamReader(obj.GetResponse().GetResponseStream(), Encoding.UTF8))
+			string yamlContent = "";
+			
+			if (stringBuilder.Length > 0)
 			{
-				string contents = streamReader.ReadToEnd();
-				File.WriteAllText(path2, contents, Encoding.UTF8);
-				AppendText(notify: false, "Mihomo配置文件生成成功，正在推送配置文件到Mihomo内核...");
+				stringBuilder.Insert(0, "ss://YWVzLTI1Ni1nY206ZmFCQW9ENTRrODdVSkc3QDEuMS4xLjE6NjY2#%e5%8d%a0%e4%bd%8d%e8%8a%82%e7%82%b9" + Environment.NewLine);
+				File.WriteAllText(path, Utils.Base64Encode(stringBuilder.ToString()), Encoding.UTF8);
+				HttpWebRequest obj = (HttpWebRequest)WebRequest.Create($"http://127.0.0.1:{25500}/sub?target=clash&url=temp_{text}.txt&insert=false");
+				obj.Method = "GET";
+				obj.Timeout = 10000;
+				obj.ReadWriteTimeout = 10000;
+				obj.ContinueTimeout = 10000;
+				using (StreamReader streamReader = new StreamReader(obj.GetResponse().GetResponseStream(), Encoding.UTF8))
+				{
+					yamlContent = streamReader.ReadToEnd();
+				}
 			}
+			else
+			{
+				yamlContent = "mixed-port: 7890\r\nmode: Global\r\nlog-level: info\r\nexternal-controller: 127.0.0.1:" + config.externalControllerPort + "\r\nproxies:\r\nproxy-groups:\r\n  - name: PROXY\r\n    type: select\r\n    proxies:\r\nrules:\r\n  - MATCH,PROXY\r\n";
+			}
+			
+			// 插入 VLESS Reality 节点
+			if (listVlessReality.Count > 0)
+			{
+				yamlContent = InsertVlessRealityToYaml(yamlContent, listVlessReality);
+			}
+			
+			// 插入 AnyTLS 节点
+			if (listAnyTLS.Count > 0)
+			{
+				yamlContent = InsertAnyTLSToYaml(yamlContent, listAnyTLS);
+			}
+			
+			File.WriteAllText(path2, yamlContent, Encoding.UTF8);
+			AppendText(notify: false, "Mihomo配置文件生成成功，正在推送配置文件到Mihomo内核...");
+			
 			string args = JsonConvert.SerializeObject(new
 			{
 				path = Path.GetFullPath(path2).Replace("\\", "/")
@@ -3717,6 +3924,126 @@ public class MainForm : Form
 			{
 			}
 		}
+	}
+	
+	/// <summary>
+	/// 生成 VLESS Reality 节点的 Mihomo YAML 配置并插入到现有配置中
+	/// </summary>
+	private string InsertVlessRealityToYaml(string yamlContent, List<VmessItem> listVlessReality)
+	{
+		StringBuilder sbProxies = new StringBuilder();
+		StringBuilder sbProxyNames = new StringBuilder();
+		
+		for (int i = 0; i < listVlessReality.Count; i++)
+		{
+			VmessItem item = listVlessReality[i];
+			string proxyName = string.IsNullOrEmpty(item.remarks) ? $"vless-reality-{i}" : item.remarks;
+			bool skipCertVerify = item.allowInsecure == "true" || item.allowInsecure == "1";
+			
+			sbProxies.AppendLine("  - name: \"" + proxyName + "\"");
+			sbProxies.AppendLine("    type: vless");
+			sbProxies.AppendLine("    server: " + item.address);
+			sbProxies.AppendLine($"    port: {item.port}");
+			sbProxies.AppendLine("    uuid: \"" + item.id + "\"");
+			sbProxies.AppendLine("    network: " + (string.IsNullOrEmpty(item.network) ? "tcp" : item.network));
+			sbProxies.AppendLine("    tls: true");
+			sbProxies.AppendLine("    udp: true");
+			
+			if (!string.IsNullOrEmpty(item.flow))
+			{
+				sbProxies.AppendLine("    flow: " + item.flow);
+			}
+			
+			string fingerprint = string.IsNullOrEmpty(item.fingerprint) ? "chrome" : item.fingerprint;
+			sbProxies.AppendLine("    client-fingerprint: " + fingerprint);
+			
+			if (!string.IsNullOrEmpty(item.sni))
+			{
+				sbProxies.AppendLine("    servername: " + item.sni);
+			}
+			
+			sbProxies.AppendLine("    skip-cert-verify: " + skipCertVerify.ToString().ToLower());
+			
+			sbProxies.AppendLine("    reality-opts:");
+			if (!string.IsNullOrEmpty(item.publicKey))
+			{
+				sbProxies.AppendLine("      public-key: " + item.publicKey);
+			}
+			if (!string.IsNullOrEmpty(item.shortId))
+			{
+				sbProxies.AppendLine("      short-id: " + item.shortId);
+			}
+			
+			sbProxyNames.AppendLine("      - \"" + proxyName + "\"");
+		}
+		
+		int num = yamlContent.IndexOf("proxies:");
+		if (num >= 0)
+		{
+			int startIndex = yamlContent.IndexOf("\n", num) + 1;
+			yamlContent = yamlContent.Insert(startIndex, sbProxies.ToString());
+		}
+		int num2 = yamlContent.IndexOf("proxy-groups:");
+		if (num2 >= 0)
+		{
+			int num3 = yamlContent.IndexOf("proxies:", num2);
+			if (num3 >= 0)
+			{
+				int startIndex2 = yamlContent.IndexOf("\n", num3) + 1;
+				yamlContent = yamlContent.Insert(startIndex2, sbProxyNames.ToString());
+			}
+		}
+		
+		return yamlContent;
+	}
+	
+	/// <summary>
+	/// 生成 AnyTLS 节点的 Mihomo YAML 配置并插入到现有配置中
+	/// </summary>
+	private string InsertAnyTLSToYaml(string yamlContent, List<VmessItem> listAnyTLS)
+	{
+		StringBuilder sbProxies = new StringBuilder();
+		StringBuilder sbProxyNames = new StringBuilder();
+		
+		for (int i = 0; i < listAnyTLS.Count; i++)
+		{
+			VmessItem item = listAnyTLS[i];
+			string proxyName = string.IsNullOrEmpty(item.remarks) ? $"anytls-{i}" : item.remarks;
+			bool skipCertVerify = item.allowInsecure == "true" || item.allowInsecure == "1";
+			
+			sbProxies.AppendLine("  - name: \"" + proxyName + "\"");
+			sbProxies.AppendLine("    type: anytls");
+			sbProxies.AppendLine("    server: " + item.address);
+			sbProxies.AppendLine($"    port: {item.port}");
+			sbProxies.AppendLine("    password: \"" + item.id + "\"");
+			if (!string.IsNullOrEmpty(item.sni))
+			{
+				sbProxies.AppendLine("    sni: " + item.sni);
+			}
+			sbProxies.AppendLine("    skip-cert-verify: " + skipCertVerify.ToString().ToLower());
+			sbProxies.AppendLine("    udp: true");
+			
+			sbProxyNames.AppendLine("      - \"" + proxyName + "\"");
+		}
+		
+		int num = yamlContent.IndexOf("proxies:");
+		if (num >= 0)
+		{
+			int startIndex = yamlContent.IndexOf("\n", num) + 1;
+			yamlContent = yamlContent.Insert(startIndex, sbProxies.ToString());
+		}
+		int num2 = yamlContent.IndexOf("proxy-groups:");
+		if (num2 >= 0)
+		{
+			int num3 = yamlContent.IndexOf("proxies:", num2);
+			if (num3 >= 0)
+			{
+				int startIndex2 = yamlContent.IndexOf("\n", num3) + 1;
+				yamlContent = yamlContent.Insert(startIndex2, sbProxyNames.ToString());
+			}
+		}
+		
+		return yamlContent;
 	}
 
 	private void tbClashPort_TextChanged(object sender, EventArgs e)
